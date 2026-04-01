@@ -45,7 +45,7 @@ namespace BoplMapEditor.Data
                 var pos  = ft.position;
                 var ext  = rr.CalcExtents();
                 var rad  = rr.radius;
-                float rot = (float)ft.localRotation * Mathf.Rad2Deg;
+                float rot = (float)ft.rotation * Mathf.Rad2Deg;
 
                 map.Platforms.Add(new PlatformData(
                     (float)pos.x, (float)pos.y,

@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using BoplMapEditor.Data;
 using BoplMapEditor.Sync;
+using BoplMapEditor.UI;
 using UnityEngine;
 
 namespace BoplMapEditor.Core
@@ -73,7 +74,7 @@ namespace BoplMapEditor.Core
             Vector2 mouseScreen = e.mousePosition;
             if (!canvas.Contains(mouseScreen)) return;
 
-            Vector2 mouseWorld = EditorCamera.ScreenToWorld(mouseScreen);
+            Vector2 mouseWorld = EditorViewport.CanvasToWorld(mouseScreen);
 
             if (e.type == EventType.MouseDown && e.button == 0)
             {

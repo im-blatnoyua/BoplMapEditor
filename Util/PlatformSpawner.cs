@@ -48,7 +48,7 @@ namespace BoplMapEditor.Util
             if (fixTrans != null)
             {
                 fixTrans.position = FixConvert.ToVec2(new Vector2(data.X, data.Y));
-                fixTrans.localRotation = FixConvert.ToFix(data.Rotation * Mathf.Deg2Rad);
+                fixTrans.rotation = FixConvert.ToFix(data.Rotation * Mathf.Deg2Rad);
             }
 
             // Re-initialize physics bounds
@@ -117,7 +117,7 @@ namespace BoplMapEditor.Util
             Plugin.Log.LogInfo($"[PlatformSpawner] Applied {mov.Type} movement to platform at ({data.X},{data.Y})");
         }
 
-        private static float CalculatePeriod(Data.PlatformMovement mov, BoplFixedMath.Vec2[] keys)
+        private static float CalculatePeriod(Data.PlatformMovement mov, global::Vec2[] keys)
         {
             switch (mov.Type)
             {

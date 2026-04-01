@@ -1,6 +1,6 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <TargetFramework>net46</TargetFramework>
+    <TargetFramework>net471</TargetFramework>
     <AssemblyName>BoplMapEditor</AssemblyName>
     <RootNamespace>BoplMapEditor</RootNamespace>
     <Nullable>enable</Nullable>
@@ -39,9 +39,29 @@
       <HintPath>..\Managed\Assembly-CSharp.dll</HintPath>
     </Reference>
 
-    <!-- Steamworks.NET -->
-    <Reference Include="com.rlabrecque.steamworks.net">
-      <HintPath>..\Managed\com.rlabrecque.steamworks.net.dll</HintPath>
+    <!-- Steamworks (Facepunch) -->
+    <Reference Include="Facepunch.Steamworks.Win64">
+      <HintPath>..\Managed\Facepunch.Steamworks.Win64.dll</HintPath>
+    </Reference>
+
+    <!-- Unity UI & TextMeshPro -->
+    <Reference Include="UnityEngine.UI">
+      <HintPath>..\Managed\UnityEngine.UI.dll</HintPath>
+    </Reference>
+    <Reference Include="UnityEngine.UIModule">
+      <HintPath>..\Managed\UnityEngine.UIModule.dll</HintPath>
+    </Reference>
+    <Reference Include="Unity.TextMeshPro">
+      <HintPath>..\Managed\Unity.TextMeshPro.dll</HintPath>
+    </Reference>
+    <Reference Include="netstandard">
+      <HintPath>..\Managed\netstandard.dll</HintPath>
+    </Reference>
+    <Reference Include="UnityEngine.JSONSerializeModule">
+      <HintPath>..\Managed\UnityEngine.JSONSerializeModule.dll</HintPath>
+    </Reference>
+    <Reference Include="UnityEngine.TextRenderingModule">
+      <HintPath>..\Managed\UnityEngine.TextRenderingModule.dll</HintPath>
     </Reference>
   </ItemGroup>
 </Project>

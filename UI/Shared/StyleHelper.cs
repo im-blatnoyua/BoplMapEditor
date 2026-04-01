@@ -15,14 +15,15 @@ namespace BoplMapEditor.UI
         private static Color _orange    = new Color(0.97f, 0.55f, 0.13f, 1f);
         private static bool  _colorsLoaded;
 
-        public static Color Blue     => EnsureColors()._blue;
-        public static Color DarkBlue => EnsureColors()._darkBlue;
-        public static Color Orange   => EnsureColors()._orange;
+        public static Color Blue      { get { EnsureColors(); return _blue; } }
+        public static Color DarkBlue  { get { EnsureColors(); return _darkBlue; } }
+        public static Color Orange    { get { EnsureColors(); return _orange; } }
+        public static Color DarkPanel => new Color(0.08f, 0.10f, 0.15f, 0.92f);
+        public static Color White     => new Color(0.95f, 0.95f, 0.95f, 1f);
 
-        private static StyleHelper EnsureColors()
+        private static void EnsureColors()
         {
             if (!_colorsLoaded) LoadGameColors();
-            return null!; // we only need the side-effect
         }
 
         public static void LoadGameColors()

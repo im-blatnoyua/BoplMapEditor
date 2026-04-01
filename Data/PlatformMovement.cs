@@ -52,7 +52,7 @@ namespace BoplMapEditor.Data
         }
 
         // Генерирует массив PathKeys для AnimateGround из текущих настроек
-        public BoplFixedMath.Vec2[] BuildPathKeys(Vector2 origin)
+        public global::Vec2[] BuildPathKeys(Vector2 origin)
         {
             switch (Type)
             {
@@ -67,7 +67,7 @@ namespace BoplMapEditor.Data
             }
         }
 
-        private BoplFixedMath.Vec2[] BuildLinearPath(Vector2 origin)
+        private global::Vec2[] BuildLinearPath(Vector2 origin)
         {
             var dir = new Vector2(DirX, DirY).normalized;
             var a = origin - dir * Distance;
@@ -81,10 +81,10 @@ namespace BoplMapEditor.Data
             };
         }
 
-        private BoplFixedMath.Vec2[] BuildCircularPath(Vector2 origin)
+        private global::Vec2[] BuildCircularPath(Vector2 origin)
         {
             const int STEPS = 32;
-            var keys = new BoplFixedMath.Vec2[STEPS + 1];
+            var keys = new global::Vec2[STEPS + 1];
             for (int i = 0; i <= STEPS; i++)
             {
                 float angle = StartAngle * Mathf.Deg2Rad + (i / (float)STEPS) * Mathf.PI * 2f;
@@ -94,10 +94,10 @@ namespace BoplMapEditor.Data
             return keys;
         }
 
-        private BoplFixedMath.Vec2[] BuildCustomPath()
+        private global::Vec2[] BuildCustomPath()
         {
-            if (Waypoints.Count == 0) return Array.Empty<BoplFixedMath.Vec2>();
-            var keys = new BoplFixedMath.Vec2[Waypoints.Count];
+            if (Waypoints.Count == 0) return Array.Empty<global::Vec2>();
+            var keys = new global::Vec2[Waypoints.Count];
             for (int i = 0; i < Waypoints.Count; i++)
                 keys[i] = Util.FixConvert.ToVec2(new Vector2(Waypoints[i].x, Waypoints[i].y));
             return keys;

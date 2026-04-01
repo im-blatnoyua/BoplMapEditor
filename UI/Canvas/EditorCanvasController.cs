@@ -213,7 +213,7 @@ namespace BoplMapEditor.UI
             if (mov.LoopPath && mov.Waypoints.Count > 1)
             {
                 var first = mov.Waypoints[0];
-                var last  = mov.Waypoints[^1];
+                var last  = mov.Waypoints[mov.Waypoints.Count - 1];
                 SpawnLine(new Vector2(last.x, last.y), new Vector2(first.x, first.y),
                     new Color(1f, 0.7f, 0.1f, 0.3f));
             }

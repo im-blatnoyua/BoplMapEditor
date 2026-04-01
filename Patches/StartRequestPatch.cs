@@ -5,8 +5,10 @@ namespace BoplMapEditor.Patches
 {
     // Sentinel: use currentLevel = 255 to signal "custom map" in the start packet.
     // This avoids changing the packet struct layout (which would break non-modded clients).
-
-    public const byte CUSTOM_MAP_SENTINEL = 255;
+    public static class StartRequestConstants
+    {
+        public const byte CUSTOM_MAP_SENTINEL = 255;
+    }
 
     // Patch 1: When the host builds the StartRequestPacket, inject the sentinel if a custom map is active.
     [HarmonyPatch(typeof(StartRequestPacket), MethodType.Constructor)]
@@ -16,7 +18,7 @@ namespace BoplMapEditor.Patches
         {
             if (LobbySync.HasCustomMap())
             {
-                __instance.currentLevel = CUSTOM_MAP_SENTINEL;
+                __instance.currentLevel = StartRequestConstants.CUSTOM_MAP_SENTINEL;
                 Plugin.Log.LogInfo("[StartRequestPatch] Injected custom map sentinel into StartRequestPacket.");
             }
         }
@@ -30,7 +32,7 @@ namespace BoplMapEditor.Patches
         // Applied dynamically in Plugin.Awake via AccessTools
         public static bool Prefix(StartRequestPacket packet)
         {
-            if (packet.currentLevel != CUSTOM_MAP_SENTINEL) return true; // run original
+            if (packet.currentLevel != StartRequestConstants.CUSTOM_MAP_SENTINEL) return true; // run original
 
             // Set the level to a valid real level (0) to avoid LoadScene out-of-bounds
             packet.currentLevel = 0;

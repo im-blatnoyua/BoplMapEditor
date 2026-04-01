@@ -2,6 +2,7 @@ using System;
 using System.Text;
 using BoplMapEditor.Data;
 using Steamworks;
+using Steamworks.Data;
 
 namespace BoplMapEditor.Sync
 {

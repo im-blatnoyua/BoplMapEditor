@@ -56,10 +56,13 @@ namespace BoplMapEditor.Util
             foreach (var pp in all)
                 SetField(pp, "gravity_modifier", (Fix)_pendingGravityMultiplier);
 
-            // Rope gravity is in RopeBody — set ropeGravity field
-            var ropes = Object.FindObjectsOfType<RopeBody>(true);
-            foreach (var rb in ropes)
-                SetField(rb, "ropeGravity", (Fix)(_pendingRopeGravityMultiplier * 3f)); // base≈3
+            // Rope gravity is in RopeBody — access via Rope MonoBehaviour
+            var ropeObjects = Object.FindObjectsOfType<Rope>(true);
+            foreach (var r in ropeObjects)
+            {
+                var rb = GetField<object>(r, "ropeBody");
+                if (rb != null) SetField(rb, "ropeGravity", (Fix)(_pendingRopeGravityMultiplier * 3f)); // base≈3
+            }
         }
 
         // ── Water ─────────────────────────────────────────────────────────
@@ -115,10 +118,10 @@ namespace BoplMapEditor.Util
         // ── Rope color ────────────────────────────────────────────────────
         public static void ApplyRopeColors(EnvironmentSettings env)
         {
-            var ropes = Object.FindObjectsOfType<RopeMesh>(true);
-            foreach (var rm in ropes)
+            var ropeObjects = Object.FindObjectsOfType<Rope>(true);
+            foreach (var r in ropeObjects)
             {
-                var meshRen = rm.GetComponent<MeshRenderer>();
+                var meshRen = r.GetComponent<MeshRenderer>();
                 if (meshRen == null) continue;
 
                 switch (env.RopeColorMode)
@@ -139,6 +142,13 @@ namespace BoplMapEditor.Util
                 f.SetValue(obj, value);
             else
                 Plugin.Log.LogWarning($"[EnvironmentApplier] Field '{name}' not found on {obj.GetType().Name}");
+        }
+
+        private static T? GetField<T>(object obj, string name) where T : class
+        {
+            var f = obj.GetType().GetField(name,
+                BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+            return f?.GetValue(obj) as T;
         }
 
         private static void SetStaticField(System.Type type, string name, object value)

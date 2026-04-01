@@ -54,7 +54,7 @@ namespace BoplMapEditor.Data
         {
             byte[] bytes = Encoding.UTF8.GetBytes(json);
             using var output = new MemoryStream();
-            using (var deflate = new DeflateStream(output, CompressionLevel.Optimal))
+            using (var deflate = new DeflateStream(output, System.IO.Compression.CompressionLevel.Optimal))
                 deflate.Write(bytes, 0, bytes.Length);
             return Convert.ToBase64String(output.ToArray());
         }
