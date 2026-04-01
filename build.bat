@@ -1,30 +1,29 @@
 @echo off
 setlocal enabledelayedexpansion
-chcp 65001 >nul
 
-echo ===== Bopl Battle Map Editor — Сборка мода =====
+echo ===== Bopl Battle Map Editor - Build =====
 echo.
 
-:: ── 1. Проверяем dotnet ─────────────────────────────────────────────────────
+:: 1. Check dotnet
 dotnet --version >nul 2>&1
 if errorlevel 1 (
-    echo [ОШИБКА] dotnet SDK не найден.
-    echo Скачай и установи: https://dotnet.microsoft.com/download
+    echo [ERROR] dotnet SDK not found.
+    echo Download and install: https://dotnet.microsoft.com/download
     pause & exit /b 1
 )
-echo [OK] dotnet найден
+echo [OK] dotnet found
 
-:: ── 2. Сборка ───────────────────────────────────────────────────────────────
-echo Собираю мод...
+:: 2. Build
+echo Building mod...
 cd /d "%~dp0"
 dotnet build -c Release
 if errorlevel 1 (
     echo.
-    echo [ОШИБКА] Сборка не удалась. Смотри ошибки выше.
+    echo [ERROR] Build failed. See errors above.
     pause & exit /b 1
 )
 
-:: ── 3. Ищем папку игры для установки ────────────────────────────────────────
+:: 3. Find game folder
 set "GAME_DIR="
 
 if exist "C:\Program Files (x86)\Steam\steamapps\common\Bopl Battle\BoplBattle.exe" (
@@ -42,32 +41,32 @@ if not defined GAME_DIR (
 )
 if not defined GAME_DIR (
     echo.
-    echo Игра не найдена автоматически. Введи путь вручную.
-    echo Пример: C:\Program Files (x86)\Steam\steamapps\common\Bopl Battle
+    echo Game not found automatically. Enter path manually.
+    echo Example: C:\Program Files (x86)\Steam\steamapps\common\Bopl Battle
     echo.
-    set /p "GAME_DIR=Путь к папке игры: "
+    set /p "GAME_DIR=Path to game folder: "
     if not exist "!GAME_DIR!\BoplBattle.exe" (
-        echo [ОШИБКА] BoplBattle.exe не найден по указанному пути.
+        echo [ERROR] BoplBattle.exe not found at the specified path.
         pause & exit /b 1
     )
 )
 
-:: ── 4. Проверяем BepInEx ────────────────────────────────────────────────────
+:: 4. Check BepInEx
 if not exist "%GAME_DIR%\BepInEx\plugins" (
     echo.
-    echo [ОШИБКА] BepInEx не установлен.
-    echo Скачай с https://github.com/BepInEx/BepInEx/releases
-    echo Распакуй в: %GAME_DIR%
-    echo Запусти игру один раз, закрой, и запусти этот скрипт снова.
+    echo [ERROR] BepInEx is not installed.
+    echo Download from https://github.com/BepInEx/BepInEx/releases
+    echo Extract to: %GAME_DIR%
+    echo Run the game once, close it, then run this script again.
     pause & exit /b 1
 )
 
-:: ── 5. Копируем DLL в plugins ───────────────────────────────────────────────
+:: 5. Copy DLL to plugins
 copy /y "%~dp0bin\Release\net471\BoplMapEditor.dll" "%GAME_DIR%\BepInEx\plugins\" >nul
 
 echo.
 echo ================================================
-echo  Готово! Мод установлен:
+echo  Done! Mod installed:
 echo  %GAME_DIR%\BepInEx\plugins\BoplMapEditor.dll
 echo ================================================
 echo.

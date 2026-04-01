@@ -36,6 +36,7 @@ namespace BoplMapEditor.Patches
             var spawned = map.Platforms
                 .Select(p => PlatformSpawner.SpawnPlatform(p))
                 .Where(s => s != null)
+                .Cast<StickyRoundedRectangle>()
                 .ToArray();
 
             // Inject spawned platforms into GameSessionHandler.grounds via reflection

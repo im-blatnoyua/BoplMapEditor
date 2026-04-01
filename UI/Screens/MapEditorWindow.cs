@@ -237,46 +237,46 @@ namespace BoplMapEditor.UI
 
             // Map name
             AddSideLabel(platformsRt, "MAP NAME", bold: true);
-            _mapNameField = AddSideInputField(sidebar, "Map name...");
+            _mapNameField = AddSideInputField(platformsRt, "Map name...");
             _mapNameField.onEndEdit.AddListener(name => _ctrl.CurrentMap.Name = name);
 
             // Save / Load buttons
-            var saveRow = AddRow(sidebar);
+            var saveRow = AddRow(platformsRt);
             var saveBtn = AddRowButton(saveRow, "Save", StyleHelper.Blue);
             saveBtn.onClick.AddListener(OnSave);
             var loadBtn = AddRowButton(saveRow, "Load", StyleHelper.DarkBlue);
             loadBtn.onClick.AddListener(OnLoad);
 
-            AddDivider(sidebar);
+            AddDivider(platformsRt);
 
             // Push to lobby
-            var lobbyBtn = AddSideButton(sidebar, "▶  Push to Lobby", StyleHelper.Orange);
+            var lobbyBtn = AddSideButton(platformsRt, "▶  Push to Lobby", StyleHelper.Orange);
             lobbyBtn.onClick.AddListener(OnPushToLobby);
 
-            AddDivider(sidebar);
+            AddDivider(platformsRt);
 
             // Platform count
-            _platformCountLabel = AddSideLabel(sidebar, "Platforms: 0");
+            _platformCountLabel = AddSideLabel(platformsRt, "Platforms: 0");
 
-            AddDivider(sidebar);
+            AddDivider(platformsRt);
 
             // Selected platform properties
-            AddSideLabel(sidebar, "SELECTED PLATFORM", bold: true);
-            _selectedInfoLabel = AddSideLabel(sidebar, "None selected");
+            AddSideLabel(platformsRt, "SELECTED PLATFORM", bold: true);
+            _selectedInfoLabel = AddSideLabel(platformsRt, "None selected");
 
-            var xyRow = AddRow(sidebar);
+            var xyRow = AddRow(platformsRt);
             AddRowLabel(xyRow, "X");
             _propX = AddRowInput(xyRow, "0.00");
             AddRowLabel(xyRow, "Y");
             _propY = AddRowInput(xyRow, "0.00");
 
-            var whRow = AddRow(sidebar);
+            var whRow = AddRow(platformsRt);
             AddRowLabel(whRow, "W");
             _propHW = AddRowInput(whRow, "8.00");
             AddRowLabel(whRow, "H");
             _propHH = AddRowInput(whRow, "1.50");
 
-            var rrRow = AddRow(sidebar);
+            var rrRow = AddRow(platformsRt);
             AddRowLabel(rrRow, "Rad");
             _propRadius = AddRowInput(rrRow, "1.00");
             AddRowLabel(rrRow, "Rot");
@@ -291,15 +291,15 @@ namespace BoplMapEditor.UI
             WirePropertyField(_propRotation, v => UpdateSelectedPlatform(rotation: v));
 
             // Movement
-            AddDivider(sidebar);
-            AddSideLabel(sidebar, "MOVEMENT", bold: true);
-            _movPanel = MovementPanel.Create(sidebar, () => {
+            AddDivider(platformsRt);
+            AddSideLabel(platformsRt, "MOVEMENT", bold: true);
+            _movPanel = MovementPanel.Create(platformsRt, () => {
                 _canvasCtrl.RefreshMovementPreview();
             });
 
             // Delete button
-            AddDivider(sidebar);
-            var delBtn = AddSideButton(sidebar, "Delete Platform",
+            AddDivider(platformsRt);
+            var delBtn = AddSideButton(platformsRt, "Delete Platform",
                 new Color(0.65f, 0.15f, 0.15f, 1f));
             delBtn.onClick.AddListener(() => {
                 _ctrl.DeleteSelected();
@@ -320,7 +320,9 @@ namespace BoplMapEditor.UI
             // ── Environment tab content ───────────────────────────────────
             var envGo = new GameObject("Tab_Environment");
             envGo.transform.SetParent(sidebar, false);
-            var envScroll = UIBuilder.MakeScrollView(envGo.GetComponent<RectTransform>() ?? envGo.AddComponent<RectTransform>(),
+            var envRt = envGo.AddComponent<RectTransform>();
+            envGo.AddComponent<LayoutElement>().flexibleHeight = 1;
+            var envScroll = UIBuilder.MakeScrollView(envRt,
                 Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
             _environmentTab = envGo;
 
