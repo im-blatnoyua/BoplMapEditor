@@ -1,4 +1,5 @@
 bin/
 obj/
+libs/
 *.user
 .vs/
