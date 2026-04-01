@@ -9,37 +9,42 @@
 1. Скачать BepInEx 5.x Mono x64: https://github.com/BepInEx/BepInEx/releases
 2. Распаковать в папку с игрой:
    C:\...\steamapps\common\Bopl Battle\
-3. Запустить игру один раз — BepInEx создаст папки (BepInEx\plugins, BepInEx\config)
+3. Запустить игру один раз — BepInEx создаст папки
 4. Закрыть игру
 
 --- КОМПИЛЯЦИЯ МОДА ---
 1. Скопировать папку BoplMapEditor на Windows
-2. Скопировать DLL-ки из папки игры в папку рядом с проектом:
-   ../Managed/  ← Assembly-CSharp.dll, UnityEngine*.dll, com.rlabrecque.steamworks.net.dll
-   ../BepInEx/core/  ← BepInEx.dll, 0Harmony.dll
+2. Скопировать DLL из папки игры:
+   ../Managed/  <- Assembly-CSharp.dll, UnityEngine*.dll, TMPro.dll,
+                   com.rlabrecque.steamworks.net.dll
+   ../BepInEx/core/  <- BepInEx.dll, 0Harmony.dll
 3. Открыть BoplMapEditor.csproj в Visual Studio / Rider
-4. Build → Release
+4. Build -> Release
 5. Скопировать BoplMapEditor.dll в:
    C:\...\Bopl Battle\BepInEx\plugins\
 
 --- ИСПОЛЬЗОВАНИЕ ---
 1. Запустить игру с BepInEx
-2. Зайти в лобби
-3. Нажать F5 — откроется выбор кастомных карт
-4. "+ Open Map Editor" — открыть редактор
+2. Зайти в лобби (локальное или онлайн)
+3. Нажать кнопку "Map Editor" в нижнем левом углу экрана
+4. Откроется браузер карт:
+   - Дефолтные карты: Classic, Bridge, Space Arena, Snow Ladder, Chaos
+   - Кнопка "+ New Map" — создать новую карту (введи название)
+   - Кнопка "Import Level" — захватить текущий загруженный уровень
+   - Клик на карточку — открыть карту в редакторе
 5. В редакторе:
-   - Select  — выделить/двигать/ресайзить платформу
-   - Place   — кликнуть на канвас для добавления платформы
-   - Delete  — кликнуть на платформу для удаления
-   - Scroll  — зум
-   - Средняя кнопка мыши — пан
-6. Ввести имя карты, нажать Save
-7. "Push to Lobby" — синхронизировать карту с друзьями
-8. Нажать Start — все игроки с модом загрузят вашу карту
+   - Вкладка "Platforms": размещение и настройка платформ
+   - Вкладка "Environment": физика, гравитация, вода, трение
+   - Инструменты: Select / Place / Delete
+   - Типы блоков: Grass / Snow / Ice / Space / Robot / Slime
+   - Движение платформы: Linear / Circle / Path (в боковой панели)
+   - Скролл — зум, правая/средняя кнопка мыши — пан
+6. Сохранить карту, нажать "Push to Lobby"
+7. Start — все игроки с модом загрузят твою карту
 
 --- ФАЙЛЫ КАРТ ---
-Сохраняются в: C:\Users\<user>\AppData\Roaming\BepInEx\config\CustomMaps\
+C:\Users\<user>\AppData\Roaming\BepInEx\config\CustomMaps\
 
 --- МУЛЬТИПЛЕЕР ---
 Все игроки должны иметь установленный мод.
-Хост выбирает карту → автоматически синхронизируется через Steam lobby metadata.
+Хост выбирает карту -> синхронизируется через Steam lobby metadata.
