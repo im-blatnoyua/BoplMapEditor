@@ -3,12 +3,12 @@
 --- ТРЕБОВАНИЯ ---
 - Игра Bopl Battle (Steam)
 - BepInEx 5.x (Mono) для Unity
-- .NET SDK 4.7.1+ или Visual Studio 2022 (для компиляции)
+- .NET SDK (https://dotnet.microsoft.com/download)
 
 --- БЫСТРАЯ УСТАНОВКА (готовый DLL) ---
 1. Установить BepInEx (см. ниже)
 2. Скопировать BoplMapEditor.dll в папку:
-   C:\...\steamapps\common\Bopl Battle\BepInEx\plugins\
+   <папка игры>\BepInEx\plugins\
 3. Запустить игру
 
 --- УСТАНОВКА BepInEx ---
@@ -16,66 +16,39 @@
    https://github.com/BepInEx/BepInEx/releases
    (файл: BepInEx_win_x64_5.x.x.x.zip)
 2. Распаковать содержимое архива прямо в папку игры:
-   C:\...\steamapps\common\Bopl Battle\
+   <папка игры>\
    После распаковки там должны появиться папки BepInEx\ и файл winhttp.dll
-3. Запустить игру один раз — BepInEx создаст нужные папки (BepInEx\plugins\ и др.)
+3. Запустить игру один раз — BepInEx создаст нужные папки
 4. Закрыть игру
-5. Скопировать BoplMapEditor.dll в:
-   C:\...\steamapps\common\Bopl Battle\BepInEx\plugins\
 
 --- КОМПИЛЯЦИЯ ИЗ ИСХОДНИКОВ ---
 
 Требования:
-  - .NET SDK (https://dotnet.microsoft.com/download) — достаточно для сборки без IDE
-  - ИЛИ Visual Studio 2022 / JetBrains Rider
+  - .NET SDK (https://dotnet.microsoft.com/download)
+  - Установленная игра Bopl Battle
+  - Установленный BepInEx (см. выше)
 
-Структура папок (относительно исходников мода):
-  Папки с зависимостями должны лежать НА ОДИН УРОВЕНЬ ВЫШЕ папки BoplMapEditor:
+Сборка (Windows):
+  1. Запустить build.bat
+  Скрипт автоматически:
+    - Найдёт папку игры (через реестр Steam или перебор дисков)
+    - Скопирует нужные DLL из игры и BepInEx в папку libs\
+    - Скомпилирует мод
+    - Установит BoplMapEditor.dll в BepInEx\plugins\
 
-  ParentFolder\
-    BoplMapEditor\       <- папка с исходниками (эта папка)
-    Managed\             <- DLL из игры
-    BepInEx\
-      core\              <- DLL из BepInEx
+  Если игра установлена в нестандартное место, скрипт попросит
+  ввести путь вручную.
 
-Откуда брать DLL:
-
-  Managed\ — копировать из папки игры:
-    C:\...\steamapps\common\Bopl Battle\BoplBattle_Data\Managed\
-    Нужные файлы:
-      Assembly-CSharp.dll
-      UnityEngine.dll
-      UnityEngine.CoreModule.dll
-      UnityEngine.IMGUIModule.dll
-      UnityEngine.InputLegacyModule.dll
-      UnityEngine.PhysicsModule.dll
-      UnityEngine.UI.dll
-      UnityEngine.UIModule.dll
-      UnityEngine.JSONSerializeModule.dll
-      UnityEngine.TextRenderingModule.dll
-      Unity.TextMeshPro.dll
-      Facepunch.Steamworks.Win64.dll
-      netstandard.dll
-
-  BepInEx\core\ — копировать из установленного BepInEx:
-    C:\...\steamapps\common\Bopl Battle\BepInEx\core\
-    Нужные файлы:
-      BepInEx.dll
-      0Harmony.dll
-
-Сборка через командную строку (Windows, Linux, macOS):
-  cd BoplMapEditor
+Сборка через командную строку (после того как libs\ заполнена):
   dotnet build -c Release
   Готовый DLL: bin\Release\net471\BoplMapEditor.dll
 
 Сборка через Visual Studio / Rider:
   1. Открыть BoplMapEditor.csproj
-  2. Выбрать конфигурацию Release
-  3. Build -> Build Solution
-  4. Готовый DLL: bin\Release\net471\BoplMapEditor.dll
-
-После сборки скопировать DLL в:
-  C:\...\steamapps\common\Bopl Battle\BepInEx\plugins\
+  2. Сначала запустить build.bat один раз (он заполнит libs\)
+  3. Выбрать конфигурацию Release
+  4. Build -> Build Solution
+  5. Вручную скопировать DLL в <папка игры>\BepInEx\plugins\
 
 --- ИСПОЛЬЗОВАНИЕ ---
 1. Запустить игру с установленным BepInEx и модом
