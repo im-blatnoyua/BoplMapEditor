@@ -38,14 +38,14 @@ namespace BoplMapEditor
             PatchStartRequestCtor(harmony);
             PatchStartRequestHandler(harmony);
 
-            Log.LogInfo($"[BoplMapEditor] Loaded v{MyPluginInfo.PLUGIN_VERSION}. Press F9 to open Map Editor.");
+            Log.LogInfo($"[BoplMapEditor] Loaded v{MyPluginInfo.PLUGIN_VERSION}. Press Insert to open Map Editor.");
         }
 
         void Update()
         {
-            if (UnityEngine.Input.GetKeyDown(KeyCode.F9))
+            if (UnityEngine.Input.GetKeyDown(KeyCode.Insert))
             {
-                Log.LogInfo("[BoplMapEditor] F9 pressed — opening browser.");
+                Log.LogInfo("[BoplMapEditor] Insert pressed — opening browser.");
                 BrowserScreen.Open();
             }
         }
