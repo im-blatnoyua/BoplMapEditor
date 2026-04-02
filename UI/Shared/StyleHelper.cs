@@ -186,7 +186,7 @@ namespace BoplMapEditor.UI
         // ── Sprite factories ──────────────────────────────────────────────
         public static Sprite MakeSolidSprite(Color color)
         {
-            var tex = new Texture2D(4, 4);
+            var tex = new Texture2D(4, 4, TextureFormat.RGBA32, false);
             for (int y = 0; y < 4; y++)
                 for (int x = 0; x < 4; x++)
                     tex.SetPixel(x, y, color);
@@ -197,7 +197,7 @@ namespace BoplMapEditor.UI
         public static Sprite MakeRoundedSprite()
         {
             const int size = 32;
-            var tex = new Texture2D(size, size);
+            var tex = new Texture2D(size, size, TextureFormat.RGBA32, false);
             tex.filterMode = FilterMode.Bilinear;
             const float r = 7f;
             for (int y = 0; y < size; y++)

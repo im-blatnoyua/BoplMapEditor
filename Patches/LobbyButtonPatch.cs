@@ -35,58 +35,66 @@ namespace BoplMapEditor.Patches
     {
         public static void Inject(GameObject lobbyRoot)
         {
-            const string TAG = "BoplMapEditorBtn";
-            if (GameObject.Find(TAG) != null) return;
+            try
+            {
+                const string TAG = "BoplMapEditorBtn";
+                if (GameObject.Find(TAG) != null) return;
 
-            // Overlay canvas so button renders above all lobby UI
-            var canvasGo = new GameObject(TAG);
-            Object.DontDestroyOnLoad(canvasGo);
-            var canvas = canvasGo.AddComponent<Canvas>();
-            canvas.renderMode = RenderMode.ScreenSpaceOverlay;
-            canvas.sortingOrder = 50;
-            var scaler = canvasGo.AddComponent<CanvasScaler>();
-            scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
-            scaler.referenceResolution = new Vector2(1920, 1080);
-            canvasGo.AddComponent<GraphicRaycaster>();
+                // Overlay canvas so button renders above all lobby UI
+                var canvasGo = new GameObject(TAG);
+                Object.DontDestroyOnLoad(canvasGo);
+                var canvas = canvasGo.AddComponent<Canvas>();
+                canvas.renderMode = RenderMode.ScreenSpaceOverlay;
+                canvas.sortingOrder = 1000;
+                var scaler = canvasGo.AddComponent<CanvasScaler>();
+                scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
+                scaler.referenceResolution = new Vector2(1920, 1080);
+                canvasGo.AddComponent<GraphicRaycaster>();
 
-            // Button — matches ReadyButton dimensions and feel
-            var btnGo = new GameObject("MapEditorButton");
-            btnGo.transform.SetParent(canvasGo.transform, false);
+                // Button — matches ReadyButton dimensions and feel
+                var btnGo = new GameObject("MapEditorButton");
+                btnGo.transform.SetParent(canvasGo.transform, false);
 
-            var img = btnGo.AddComponent<Image>();
-            img.color  = StyleHelper.Blue;
-            img.sprite = StyleHelper.MakeRoundedSprite();
-            img.type   = Image.Type.Sliced;
+                var img = btnGo.AddComponent<Image>();
+                img.color  = StyleHelper.Blue;
+                img.sprite = StyleHelper.MakeRoundedSprite();
+                img.type   = Image.Type.Sliced;
 
-            var btn = btnGo.AddComponent<Button>();
-            StyleHelper.StyleButton(btn, StyleHelper.Blue);
-            StyleHelper.AddPressColorSwap(btn);
+                var btn = btnGo.AddComponent<Button>();
+                StyleHelper.StyleButton(btn, StyleHelper.Blue);
+                StyleHelper.AddPressColorSwap(btn);
 
-            // Position: bottom-left, above the corner
-            var rt = btnGo.GetComponent<RectTransform>();
-            rt.anchorMin = rt.anchorMax = rt.pivot = new Vector2(0f, 0f);
-            rt.sizeDelta = new Vector2(210, 54);
-            rt.anchoredPosition = new Vector2(24, 24);
+                // Position: bottom-left, above the corner
+                var rt = btnGo.GetComponent<RectTransform>();
+                rt.anchorMin = rt.anchorMax = rt.pivot = new Vector2(0f, 0f);
+                rt.sizeDelta = new Vector2(210, 54);
+                rt.anchoredPosition = new Vector2(24, 24);
 
-            // Animated hover scale — uses ReadyButton's AnimationCurve
-            var hoverAnim = btnGo.AddComponent<HoverScaleAnimator>();
-            hoverAnim.Curve = StyleHelper.GetHoverCurve();
+                // Animated hover scale — uses ReadyButton's AnimationCurve
+                var hoverAnim = btnGo.AddComponent<HoverScaleAnimator>();
+                hoverAnim.Curve = StyleHelper.GetHoverCurve();
 
-            // Label with game font
-            var lblGo = new GameObject("Label");
-            lblGo.transform.SetParent(btnGo.transform, false);
-            var tmp = lblGo.AddComponent<TextMeshProUGUI>();
-            StyleHelper.StyleText(tmp, 18f, bold: true);
-            tmp.text = "✏  Map Editor";
-            var lrt = lblGo.GetComponent<RectTransform>();
-            lrt.anchorMin = Vector2.zero;
-            lrt.anchorMax = Vector2.one;
-            lrt.offsetMin = new Vector2(8, 0);
-            lrt.offsetMax = new Vector2(-8, 0);
+                // Label with game font
+                var lblGo = new GameObject("Label");
+                lblGo.transform.SetParent(btnGo.transform, false);
+                var tmp = lblGo.AddComponent<TextMeshProUGUI>();
+                StyleHelper.StyleText(tmp, 18f, bold: true);
+                tmp.text = "✏  Map Editor";
+                tmp.raycastTarget = false;
+                var lrt = lblGo.GetComponent<RectTransform>();
+                lrt.anchorMin = Vector2.zero;
+                lrt.anchorMax = Vector2.one;
+                lrt.offsetMin = new Vector2(8, 0);
+                lrt.offsetMax = new Vector2(-8, 0);
 
-            btn.onClick.AddListener(() => Plugin.BrowserScreen.Open());
+                btn.onClick.AddListener(() => Plugin.BrowserScreen.Open());
 
-            Plugin.Log.LogInfo("[LobbyButtonPatch] Map Editor button added to lobby.");
+                Plugin.Log.LogInfo("[LobbyButtonPatch] Map Editor button added to lobby.");
+            }
+            catch (System.Exception ex)
+            {
+                Plugin.Log.LogError($"[LobbyButtonPatch] Failed to inject button: {ex}");
+            }
         }
     }
 
