@@ -65,9 +65,9 @@ namespace BoplMapEditor.UI
         {
             var root = _canvas.GetComponent<RectTransform>();
 
-            // ── Full-screen dark backdrop ─────────────────────────────────
+            // Semi-transparent backdrop — game background shows through
             var backdrop = root.gameObject.AddComponent<Image>();
-            backdrop.color = new Color(0.04f, 0.05f, 0.09f, 0.96f);
+            backdrop.color = new Color(0.02f, 0.03f, 0.06f, 0.82f);
 
             // ── Header bar ────────────────────────────────────────────────
             // Slightly elevated surface with a subtle bottom border.

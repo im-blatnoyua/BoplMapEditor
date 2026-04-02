@@ -88,8 +88,8 @@ namespace BoplMapEditor.UI
         {
             var root = _canvas.GetComponent<RectTransform>();
 
-            // ── Full-screen background ────────────────────────────────────
-            var bg = UIBuilder.FlatPanel(root, "Background", StyleHelper.DarkPanel,
+            // Thin semi-transparent overlay so game background shows through
+            var bg = UIBuilder.FlatPanel(root, "Background", new Color(0f, 0f, 0f, 0f),
                 Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
 
             // ── Toolbar (top strip) ───────────────────────────────────────
@@ -163,6 +163,30 @@ namespace BoplMapEditor.UI
             _canvasCtrl = canvasCtrlGo.AddComponent<EditorCanvasController>();
             _canvasCtrl.Init(_ctrl, ccRt, contentRt);
 
+            // ── Close button — fixed top-right, always visible ────────────
+            var closeBtnGo = new GameObject("CloseBtn");
+            closeBtnGo.transform.SetParent(root, false);
+            var closeBtnImg = closeBtnGo.AddComponent<Image>();
+            closeBtnImg.color = new Color(0.70f, 0.15f, 0.15f, 1f);
+            closeBtnImg.sprite = StyleHelper.MakeRoundedSprite();
+            closeBtnImg.type = Image.Type.Sliced;
+            var closeBtnBtn = closeBtnGo.AddComponent<Button>();
+            StyleHelper.StyleButton(closeBtnBtn, new Color(0.70f, 0.15f, 0.15f, 1f));
+            var closeBtnRt = closeBtnGo.GetComponent<RectTransform>();
+            closeBtnRt.anchorMin = closeBtnRt.anchorMax = closeBtnRt.pivot = new Vector2(1f, 1f);
+            closeBtnRt.sizeDelta = new Vector2(80f, 36f);
+            closeBtnRt.anchoredPosition = new Vector2(-8f, -8f);
+            var closeLblGo = new GameObject("Label");
+            closeLblGo.transform.SetParent(closeBtnGo.transform, false);
+            var closeTmp = closeLblGo.AddComponent<TextMeshProUGUI>();
+            StyleHelper.StyleText(closeTmp, 15f, bold: true);
+            closeTmp.text = "✕ Close";
+            closeTmp.raycastTarget = false;
+            var closeLblRt = closeLblGo.GetComponent<RectTransform>();
+            closeLblRt.anchorMin = Vector2.zero; closeLblRt.anchorMax = Vector2.one;
+            closeLblRt.offsetMin = closeLblRt.offsetMax = Vector2.zero;
+            closeBtnBtn.onClick.AddListener(Close);
+
             // ── Load-map browser (modal) ───────────────────────────────────
             BuildBrowserPanel(bg);
         }
@@ -190,12 +214,11 @@ namespace BoplMapEditor.UI
 
             var spacerA = MakeToolbarSpacer(toolbar, 6);
 
-            AddToolbarLabel(toolbar, "MAP EDITOR", 16f, bold: true, minWidth: 130);
+            AddToolbarLabel(toolbar, "MAP EDITOR", 14f, bold: true, minWidth: 100);
 
             AddToolbarSep(toolbar);
 
             // ── Tool mode ─────────────────────────────────────────────────
-            AddToolbarLabel(toolbar, "Tool", 12f, minWidth: 30);
             string[] toolNames  = { "Select", "Place", "Delete" };
             Color[]  toolColors = {
                 StyleHelper.Blue,
@@ -205,7 +228,7 @@ namespace BoplMapEditor.UI
             for (int i = 0; i < toolNames.Length; i++)
             {
                 int idx = i;
-                var btn = AddToolbarButton(toolbar, toolNames[i], toolColors[i], minWidth: 72);
+                var btn = AddToolbarButton(toolbar, toolNames[i], toolColors[i], minWidth: 60);
                 btn.onClick.AddListener(() => SetTool(idx));
                 _toolButtons.Add(btn);
             }
@@ -213,12 +236,11 @@ namespace BoplMapEditor.UI
             AddToolbarSep(toolbar);
 
             // ── Block type ────────────────────────────────────────────────
-            AddToolbarLabel(toolbar, "Block", 12f, minWidth: 36);
             for (int i = 0; i < StyleHelper.PlatformNames.Length; i++)
             {
                 int idx = i;
                 var btn = AddToolbarButton(toolbar, StyleHelper.PlatformNames[i],
-                    StyleHelper.PlatformColors[i], minWidth: 62);
+                    StyleHelper.PlatformColors[i], minWidth: 52);
                 btn.onClick.AddListener(() => SetPlacePlatformType(idx));
                 _typeButtons.Add(btn);
             }
@@ -226,25 +248,16 @@ namespace BoplMapEditor.UI
             AddToolbarSep(toolbar);
 
             // ── Level theme ───────────────────────────────────────────────
-            AddToolbarLabel(toolbar, "Theme", 12f, minWidth: 42);
             for (int i = 0; i < StyleHelper.ThemeNames.Length; i++)
             {
                 int idx = i;
                 var btn = AddToolbarButton(toolbar, StyleHelper.ThemeNames[i],
-                    StyleHelper.ThemeColors[i], minWidth: 62);
+                    StyleHelper.ThemeColors[i], minWidth: 52);
                 btn.onClick.AddListener(() => SetTheme(idx));
                 _themeButtons.Add(btn);
             }
 
-            // Flexible spacer pushes Close to the right
-            var flex = new GameObject("Flex");
-            flex.transform.SetParent(toolbar, false);
-            flex.AddComponent<LayoutElement>().flexibleWidth = 1;
-
-            // Close button
-            var closeBtn = AddToolbarButton(toolbar, "✕  Close",
-                new Color(0.60f, 0.15f, 0.15f, 1f), minWidth: 88);
-            closeBtn.onClick.AddListener(Close);
+            // No close button in toolbar — it's placed as a fixed overlay button below
 
             UpdateToolHighlights();
         }
