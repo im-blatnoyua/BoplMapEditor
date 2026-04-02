@@ -54,8 +54,8 @@ namespace BoplMapEditor.UI
             Color c = StyleHelper.PlatformColors[typeIdx];
             _ghostImg.color = new Color(c.r, c.g, c.b, 0.5f);
 
-            float hw = 8f;
-            float hh = 1.5f;
+            float hw = MapEditorController.IslandPresets[_ctrl.SelectedPreset].hw;
+            float hh = MapEditorController.IslandPresets[_ctrl.SelectedPreset].hh;
             Vector2 canvasPos = EditorViewport.WorldToCanvas(worldPos);
             Vector2 sizeA = EditorViewport.WorldToCanvas(new Vector2(worldPos.x - hw, worldPos.y - hh));
             Vector2 sizeB = EditorViewport.WorldToCanvas(new Vector2(worldPos.x + hw, worldPos.y + hh));

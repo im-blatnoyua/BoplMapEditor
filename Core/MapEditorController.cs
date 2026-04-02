@@ -8,6 +8,16 @@ namespace BoplMapEditor.Core
 {
     public enum EditorTool { Select, Place, Delete }
 
+    public struct IslandPreset
+    {
+        public float hw, hh, radius;
+        public string name;
+        public IslandPreset(float hw, float hh, float radius, string name)
+        {
+            this.hw = hw; this.hh = hh; this.radius = radius; this.name = name;
+        }
+    }
+
     public class MapEditorController
     {
         public bool IsOpen { get; private set; }
@@ -18,6 +28,17 @@ namespace BoplMapEditor.Core
         public EditorTool ActiveTool = EditorTool.Select;
         public int SelectedPlatformIndex = -1;
         public int PlacePlatformType = 0;
+
+        // Island shape presets
+        public static readonly IslandPreset[] IslandPresets = {
+            new IslandPreset(12f, 1.5f, 1.2f, "WIDE"),
+            new IslandPreset(6f,  1.5f, 1.2f, "MEDIUM"),
+            new IslandPreset(3f,  1.5f, 1.0f, "SMALL"),
+            new IslandPreset(6f,  6f,   5.5f, "ROUND"),
+            new IslandPreset(8f,  1.5f, 1.0f, "NORMAL"),
+            new IslandPreset(16f, 1.5f, 1.2f, "LONG"),
+        };
+        public int SelectedPreset = 4; // default: NORMAL
 
         // Snap to grid
         public bool SnapToGrid = true;
@@ -180,7 +201,8 @@ namespace BoplMapEditor.Core
         public void AddPlatform(Vector2 worldPos)
         {
             worldPos = Snap(worldPos);
-            var p = new PlatformData(worldPos.x, worldPos.y, 8f, 1.5f, 1f, 0f, PlacePlatformType);
+            var preset = IslandPresets[SelectedPreset];
+            var p = new PlatformData(worldPos.x, worldPos.y, preset.hw, preset.hh, preset.radius, 0f, PlacePlatformType);
             History.Push(new AddPlatformCommand(p));
             SelectedPlatformIndex = CurrentMap.Platforms.Count - 1;
             ActiveTool = EditorTool.Select;
