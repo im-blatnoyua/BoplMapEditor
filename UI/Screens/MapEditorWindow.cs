@@ -698,7 +698,10 @@ namespace BoplMapEditor.UI
         {
             string name = _mapNameField.text.Trim();
             if (string.IsNullOrEmpty(name)) name = "Untitled";
+            _ctrl.CurrentMap.Name = name;
             _ctrl.SaveCurrentMap(name);
+            _platformCountLabel.text = $"Saved! ({_ctrl.CurrentMap.Platforms.Count} platforms)";
+            Plugin.Log.LogInfo($"[MapEditorWindow] Saved map '{name}'");
         }
 
         private void OnLoad()

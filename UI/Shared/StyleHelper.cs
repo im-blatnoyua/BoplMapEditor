@@ -141,7 +141,8 @@ namespace BoplMapEditor.UI
 
         public static TMP_FontAsset? GetGameFont()
         {
-            if (_fontLoaded) return _gameFont;
+            // Retry if previous attempt returned null (scene may not have been ready)
+            if (_fontLoaded && _gameFont != null) return _gameFont;
             _fontLoaded = true;
 
             var csh = Object.FindObjectOfType<CharacterSelectHandler>(true);
@@ -152,6 +153,19 @@ namespace BoplMapEditor.UI
                 {
                     _gameFont = startText.font;
                     Plugin.Log.LogInfo("[StyleHelper] Loaded game font from startText.");
+                    return _gameFont;
+                }
+            }
+
+            // Try online lobby handler too
+            var csho = Object.FindObjectOfType<CharacterSelectHandler_online>(true);
+            if (csho != null)
+            {
+                var startText = GetField<TextMeshProUGUI>(csho, "startText");
+                if (startText != null && startText.font != null)
+                {
+                    _gameFont = startText.font;
+                    Plugin.Log.LogInfo("[StyleHelper] Loaded game font from online startText.");
                     return _gameFont;
                 }
             }

@@ -29,6 +29,7 @@ namespace BoplMapEditor.Core
             IsOpen = true;
             CurrentMap = existing?.Clone() ?? new MapData("Untitled");
             SelectedPlatformIndex = -1;
+            ActiveTool = EditorTool.Place; // start in Place mode so user can immediately add blocks
         }
 
         public void Close()

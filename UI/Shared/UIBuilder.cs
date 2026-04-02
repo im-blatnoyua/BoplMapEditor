@@ -18,7 +18,8 @@ namespace BoplMapEditor.UI
             canvas.sortingOrder = sortOrder;
             var scaler = go.AddComponent<CanvasScaler>();
             scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
-            scaler.referenceResolution = new Vector2(1920, 1080);
+            scaler.referenceResolution = new Vector2(1280, 720);
+            scaler.matchWidthOrHeight = 0.5f;
             go.AddComponent<GraphicRaycaster>();
             return canvas;
         }
