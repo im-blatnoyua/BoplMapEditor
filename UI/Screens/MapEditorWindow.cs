@@ -37,6 +37,9 @@ namespace BoplMapEditor.UI
         private Button _redoBtn = null!;
         private Button _snapBtn = null!;
 
+        // Viewport image — made transparent when a background scene is loaded
+        private Image _viewportImg = null!;
+
         // Tab fields — kept for API compatibility, wired to dummy objects
         private GameObject       _platformsTab   = null!;
         private GameObject       _environmentTab = null!;
@@ -90,6 +93,7 @@ namespace BoplMapEditor.UI
 
         public void Close()
         {
+            Util.BackgroundSceneLoader.Unload();
             _slideAnimator.AnimateOut(() => {
                 _ctrl.Close();
                 gameObject.SetActive(false);
@@ -188,10 +192,9 @@ namespace BoplMapEditor.UI
             // ── Canvas viewport (center, solid dark bg, grid) ──────────────
             var viewportGo = new GameObject("Viewport");
             viewportGo.transform.SetParent(main, false);
-            var viewportImg = viewportGo.AddComponent<Image>();
-            // Solid opaque dark — NOT transparent
-            viewportImg.color = new Color(0.08f, 0.11f, 0.18f, 1.0f);
-            viewportImg.raycastTarget = true;
+            _viewportImg = viewportGo.AddComponent<Image>();
+            _viewportImg.color = new Color(0.08f, 0.11f, 0.18f, 1.0f);
+            _viewportImg.raycastTarget = true;
             var viewportRt = viewportGo.GetComponent<RectTransform>();
             viewportRt.anchorMin = Vector2.zero;
             viewportRt.anchorMax = Vector2.one;
@@ -474,6 +477,30 @@ namespace BoplMapEditor.UI
                 btn.onClick.AddListener(() => SetTheme(idx));
                 _themeButtons.Add(btn);
             }
+
+            // ── SCENE BACKGROUND section ──────────────────────────────────
+            float sceneDivY = themeStartY - StyleHelper.ThemeNames.Length * themeStep - 8f;
+            MakeLeftDivider(panel, sceneDivY, bw, cx);
+            float sceneLabelY = sceneDivY - 16f;
+            MakeLeftLabel(panel, "SCENE", cx, bw, sceneLabelY, 16f);
+
+            string[] sceneLabels = { "🌿", "❄", "🌌" };
+            Color[] sceneColors  = {
+                new Color(0.25f, 0.62f, 0.18f, 1f),
+                new Color(0.55f, 0.78f, 0.95f, 1f),
+                new Color(0.10f, 0.10f, 0.32f, 1f),
+            };
+            float sceneStartY = sceneLabelY - 32f;
+            for (int i = 0; i < 3; i++)
+            {
+                int idx = i;
+                var btn = MakeLeftButton(panel, sceneLabels[i], sceneColors[i],
+                    new Vector2(cx, sceneStartY - i * 40f), new Vector2(bw, 32f));
+                btn.onClick.AddListener(() => Util.BackgroundSceneLoader.Load(idx));
+            }
+            var noBgBtn = MakeLeftButton(panel, "✕BG", new Color(0.3f, 0.3f, 0.35f, 1f),
+                new Vector2(cx, sceneStartY - 3 * 40f), new Vector2(bw, 32f));
+            noBgBtn.onClick.AddListener(() => Util.BackgroundSceneLoader.Unload());
 
             UpdateToolHighlights();
             UpdateTypeHighlights();
@@ -1068,6 +1095,14 @@ namespace BoplMapEditor.UI
             {
                 _ctrl.SnapToGrid = !_ctrl.SnapToGrid;
                 if (_snapBtn != null) UpdateSnapHighlight(_snapBtn);
+            }
+
+            // Make viewport transparent when a background scene is loaded
+            if (_viewportImg != null)
+            {
+                _viewportImg.color = Util.BackgroundSceneLoader.IsLoaded
+                    ? Color.clear
+                    : new Color(0.08f, 0.11f, 0.18f, 1.0f);
             }
         }
     }
