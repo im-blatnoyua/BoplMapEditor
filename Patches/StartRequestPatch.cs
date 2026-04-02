@@ -10,11 +10,10 @@ namespace BoplMapEditor.Patches
         public const byte CUSTOM_MAP_SENTINEL = 255;
     }
 
-    // Patch 1: When the host builds the StartRequestPacket, inject the sentinel if a custom map is active.
-    [HarmonyPatch(typeof(StartRequestPacket), MethodType.Constructor)]
+    // Patch 1: applied dynamically in Plugin.Awake via PatchStartRequestCtor()
     public static class StartRequestPacket_CtorPatch
     {
-        static void Postfix(ref StartRequestPacket __instance)
+        public static void Postfix(ref StartRequestPacket __instance)
         {
             if (LobbySync.HasCustomMap())
             {

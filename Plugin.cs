@@ -25,32 +25,37 @@ namespace BoplMapEditor
             Log = Logger;
             Log.LogInfo("[BoplMapEditor] Awake() started");
 
-            try
-            {
             Data.MapSerializer.EnsureDirectory();
-            Log.LogInfo("[BoplMapEditor] EnsureDirectory OK");
             Editor = new MapEditorController();
-            Log.LogInfo("[BoplMapEditor] MapEditorController OK");
+            EditorWindow = MapEditorWindow.Create(Editor);
+            BrowserScreen = MapBrowserScreen.Create(EditorWindow);
+            Log.LogInfo("[BoplMapEditor] Core objects created OK");
 
             var harmony = new Harmony(MyPluginInfo.PLUGIN_GUID);
-            harmony.PatchAll();
-            Log.LogInfo("[BoplMapEditor] PatchAll OK");
+            try { harmony.PatchAll(); }
+            catch (Exception ex) { Log.LogWarning($"[BoplMapEditor] PatchAll partial failure (non-fatal): {ex.Message}"); }
 
-            // Dynamically patch the StartRequestPacket handler
+            PatchStartRequestCtor(harmony);
             PatchStartRequestHandler(harmony);
 
-            // Create editor window and browser screen
-            EditorWindow = MapEditorWindow.Create(Editor);
-            Log.LogInfo("[BoplMapEditor] EditorWindow OK");
-            BrowserScreen = MapBrowserScreen.Create(EditorWindow);
-            Log.LogInfo("[BoplMapEditor] BrowserScreen OK");
+            Log.LogInfo($"[BoplMapEditor] Loaded v{MyPluginInfo.PLUGIN_VERSION}.");
+        }
 
-            Log.LogInfo($"[BoplMapEditor] Loaded v{MyPluginInfo.PLUGIN_VERSION}. " +
-                        "A 'Map Editor' button will appear in the lobby.");
+        private void PatchStartRequestCtor(Harmony harmony)
+        {
+            try
+            {
+                var ctors = typeof(StartRequestPacket).GetConstructors(
+                    BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+                if (ctors.Length == 0) { Log.LogWarning("[BoplMapEditor] StartRequestPacket has no constructors."); return; }
+                var postfix = typeof(StartRequestPacket_CtorPatch).GetMethod(
+                    nameof(StartRequestPacket_CtorPatch.Postfix), BindingFlags.Static | BindingFlags.Public);
+                harmony.Patch(ctors[0], postfix: new HarmonyMethod(postfix));
+                Log.LogInfo("[BoplMapEditor] Patched StartRequestPacket constructor.");
             }
             catch (Exception ex)
             {
-                Log.LogError($"[BoplMapEditor] Awake() FAILED: {ex}");
+                Log.LogWarning($"[BoplMapEditor] Could not patch StartRequestPacket ctor: {ex.Message}");
             }
         }
 
