@@ -108,6 +108,20 @@ namespace BoplMapEditor.UI
             return btn;
         }
 
+        // Absolute-positioned button: anchor+pivot set to anchorPivot, size=sizeDelta, pos=anchoredPosition.
+        public static Button MakeAbsoluteButton(Transform parent, string text, Color color,
+            Vector2 anchorPivot, Vector2 size, Vector2 pos)
+        {
+            var btn = MakeButton(parent, text, color, size, pos);
+            var rt  = btn.GetComponent<RectTransform>();
+            rt.anchorMin        = anchorPivot;
+            rt.anchorMax        = anchorPivot;
+            rt.pivot            = anchorPivot;
+            rt.sizeDelta        = size;
+            rt.anchoredPosition = pos;
+            return btn;
+        }
+
         // Icon-button: square, no label padding, centered content.
         public static Button MakeIconButton(Transform parent, string icon, Color color, float size)
         {
