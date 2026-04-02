@@ -141,35 +141,56 @@ namespace BoplMapEditor.UI
 
         public static TMP_FontAsset? GetGameFont()
         {
-            // Retry if previous attempt returned null (scene may not have been ready)
             if (_fontLoaded && _gameFont != null) return _gameFont;
             _fontLoaded = true;
 
-            var csh = Object.FindObjectOfType<CharacterSelectHandler>(true);
-            if (csh != null)
+            // Best source: LocalizedText.localizationTable — this is what ReadyButton uses
+            try
             {
-                var startText = GetField<TextMeshProUGUI>(csh, "startText");
-                if (startText != null && startText.font != null)
+                var table = GetStaticField<LocalizationTable>(typeof(LocalizedText), "localizationTable");
+                if (table != null)
                 {
-                    _gameFont = startText.font;
-                    Plugin.Log.LogInfo("[StyleHelper] Loaded game font from startText.");
+                    var settings = GetStaticField<Settings>(typeof(Settings), null);
+                    // Settings.Get() is a static method
+                    var getMethod = typeof(Settings).GetMethod("Get",
+                        System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.Public);
+                    var settingsInst = getMethod?.Invoke(null, null);
+                    if (settingsInst != null)
+                    {
+                        var getFontMethod = table.GetType().GetMethod("GetFont",
+                            System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.Public);
+                        if (getFontMethod != null)
+                        {
+                            var langField = settingsInst.GetType().GetField("Language",
+                                System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.NonPublic);
+                            var lang = langField?.GetValue(settingsInst) ?? 0;
+                            var font = getFontMethod.Invoke(table, new object[] { lang, false }) as TMP_FontAsset;
+                            if (font != null)
+                            {
+                                _gameFont = font;
+                                Plugin.Log.LogInfo("[StyleHelper] Loaded game font from LocalizationTable.");
+                                return _gameFont;
+                            }
+                        }
+                    }
+                }
+            }
+            catch { /* fallback below */ }
+
+            // Fallback: grab font from ReadyButton's text
+            var rb = Object.FindObjectOfType<ReadyButton>(true);
+            if (rb != null)
+            {
+                var txt = GetField<TextMeshProUGUI>(rb, "text");
+                if (txt?.font != null)
+                {
+                    _gameFont = txt.font;
+                    Plugin.Log.LogInfo("[StyleHelper] Loaded game font from ReadyButton.text.");
                     return _gameFont;
                 }
             }
 
-            // Try online lobby handler too
-            var csho = Object.FindObjectOfType<CharacterSelectHandler_online>(true);
-            if (csho != null)
-            {
-                var startText = GetField<TextMeshProUGUI>(csho, "startText");
-                if (startText != null && startText.font != null)
-                {
-                    _gameFont = startText.font;
-                    Plugin.Log.LogInfo("[StyleHelper] Loaded game font from online startText.");
-                    return _gameFont;
-                }
-            }
-
+            // Fallback: any TMP text in scene
             var anyText = Object.FindObjectOfType<TextMeshProUGUI>(true);
             if (anyText != null && anyText.font != null)
             {
@@ -414,6 +435,13 @@ namespace BoplMapEditor.UI
             var f = obj.GetType().GetField(name,
                 BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
             return f?.GetValue(obj) as T;
+        }
+
+        private static T? GetStaticField<T>(System.Type type, string? name) where T : class
+        {
+            if (name == null) return null;
+            var f = type.GetField(name, BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic);
+            return f?.GetValue(null) as T;
         }
     }
 }
