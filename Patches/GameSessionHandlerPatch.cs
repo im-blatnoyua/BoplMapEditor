@@ -8,7 +8,7 @@ using UnityEngine;
 namespace BoplMapEditor.Patches
 {
     // After the base scene loads, replace all platforms with the custom map's platforms.
-    [HarmonyPatch(typeof(GameSessionHandler), "Start")]
+    [HarmonyPatch(typeof(GameSessionHandler), "Awake")]
     public static class GameSessionHandlerPatch
     {
         static void Postfix(GameSessionHandler __instance)
