@@ -38,7 +38,16 @@ namespace BoplMapEditor
             PatchStartRequestCtor(harmony);
             PatchStartRequestHandler(harmony);
 
-            Log.LogInfo($"[BoplMapEditor] Loaded v{MyPluginInfo.PLUGIN_VERSION}.");
+            Log.LogInfo($"[BoplMapEditor] Loaded v{MyPluginInfo.PLUGIN_VERSION}. Press F8 to open Map Editor.");
+        }
+
+        void Update()
+        {
+            if (UnityEngine.Input.GetKeyDown(KeyCode.F8))
+            {
+                Log.LogInfo("[BoplMapEditor] F8 pressed — opening browser.");
+                BrowserScreen.Open();
+            }
         }
 
         private void PatchStartRequestCtor(Harmony harmony)
