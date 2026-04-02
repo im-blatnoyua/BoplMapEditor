@@ -82,7 +82,7 @@ namespace BoplMapEditor.UI
 
             var img = go.AddComponent<Image>();
             img.color  = color;
-            img.sprite = StyleHelper.MakeRoundedSprite();
+            img.sprite = StyleHelper.GetButtonSprite();
             img.type   = Image.Type.Sliced;
 
             var btn = go.AddComponent<Button>();

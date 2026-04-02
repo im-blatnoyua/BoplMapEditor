@@ -354,9 +354,9 @@ namespace BoplMapEditor.UI
             var c = btn.colors;
             c.normalColor      = baseColor;
             c.highlightedColor = new Color(
-                Mathf.Min(baseColor.r + 0.12f, 1f),
-                Mathf.Min(baseColor.g + 0.12f, 1f),
-                Mathf.Min(baseColor.b + 0.15f, 1f),
+                Mathf.Min(baseColor.r + 0.15f, 1f),
+                Mathf.Min(baseColor.g + 0.15f, 1f),
+                Mathf.Min(baseColor.b + 0.18f, 1f),
                 baseColor.a);
             c.pressedColor     = _orange;
             c.selectedColor    = _orange;
@@ -369,9 +369,20 @@ namespace BoplMapEditor.UI
             if (btn.GetComponent<Image>() is Image img)
             {
                 img.color  = baseColor;
-                img.sprite = MakeRoundedSprite();
+                img.sprite = GetButtonSprite();
                 img.type   = Image.Type.Sliced;
             }
+        }
+
+        // Sets font, size, bold+uppercase style and a muted color — for section labels.
+        public static void StyleTextAllCaps(TextMeshProUGUI tmp, float size)
+        {
+            var font = GetGameFont();
+            if (font != null) tmp.font = font;
+            tmp.fontSize  = size;
+            tmp.color     = TextMuted;
+            tmp.fontStyle = FontStyles.Bold | FontStyles.UpperCase;
+            tmp.alignment = TextAlignmentOptions.Left;
         }
 
         public static void StyleButtonBlue(Button btn)

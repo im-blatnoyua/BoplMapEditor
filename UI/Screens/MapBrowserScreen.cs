@@ -21,7 +21,7 @@ namespace BoplMapEditor.UI
         private TMP_InputField  _newMapNameField = null!;
         private TextMeshProUGUI _newMapError     = null!;
 
-        private const float HEADER_H = 56f;
+        private const float HEADER_H = 72f;
 
         // ── Factory ───────────────────────────────────────────────────────
 
@@ -59,13 +59,13 @@ namespace BoplMapEditor.UI
         {
             var root = _canvas.GetComponent<RectTransform>();
 
-            // Semi-transparent backdrop
+            // Dark navy backdrop — matches Bopl Battle lobby background feel
             var backdrop = root.gameObject.AddComponent<Image>();
-            backdrop.color = new Color(0.02f, 0.03f, 0.07f, 0.88f);
+            backdrop.color = new Color(0.02f, 0.04f, 0.10f, 0.92f);
 
             // ── Header bar ────────────────────────────────────────────────
             var header = UIBuilder.FlatPanel(root, "Header",
-                new Color(0.07f, 0.09f, 0.16f, 0.92f),
+                new Color(0.05f, 0.08f, 0.16f, 0.97f),
                 new Vector2(0f, 1f), Vector2.one,
                 new Vector2(0f, -HEADER_H), Vector2.zero);
             BuildHeader(header);
@@ -116,8 +116,8 @@ namespace BoplMapEditor.UI
             contentRt.offsetMax = Vector2.zero;
 
             var vlg = contentGo.AddComponent<VerticalLayoutGroup>();
-            vlg.padding = new RectOffset(24, 24, 12, 12);
-            vlg.spacing = 4f;
+            vlg.padding = new RectOffset(28, 28, 16, 16);
+            vlg.spacing = 6f;
             vlg.childForceExpandWidth  = true;
             vlg.childForceExpandHeight = false;
 
@@ -136,46 +136,47 @@ namespace BoplMapEditor.UI
         private void BuildHeader(RectTransform header)
         {
             var layout = header.gameObject.AddComponent<HorizontalLayoutGroup>();
-            layout.padding = new RectOffset(24, 16, 0, 0);
-            layout.spacing = 10;
+            layout.padding = new RectOffset(28, 18, 0, 0);
+            layout.spacing = 12;
             layout.childAlignment         = TextAnchor.MiddleLeft;
             layout.childForceExpandHeight = true;
             layout.childForceExpandWidth  = false;
 
-            // Title
+            // Title — big, bold, all-caps game style
             var titleGo  = new GameObject("Title");
             titleGo.transform.SetParent(header, false);
             var titleTmp = titleGo.AddComponent<TextMeshProUGUI>();
-            StyleHelper.StyleText(titleTmp, 22f, bold: true);
-            titleTmp.text      = "MY MAPS";
+            StyleHelper.StyleText(titleTmp, 28f, bold: true);
+            titleTmp.text      = "🗺 MY MAPS";
             titleTmp.color     = StyleHelper.TextPrimary;
+            titleTmp.fontStyle = FontStyles.Bold | FontStyles.UpperCase;
             titleTmp.alignment = TextAlignmentOptions.Left;
-            titleGo.AddComponent<LayoutElement>().minWidth = 160;
+            titleGo.AddComponent<LayoutElement>().minWidth = 200;
 
             // Spacer
             var spacer = new GameObject("Spacer");
             spacer.transform.SetParent(header, false);
             spacer.AddComponent<LayoutElement>().flexibleWidth = 1;
 
-            // + New Map (orange)
-            var newBtn = AddHeaderButton(header, "+ New Map", StyleHelper.Orange, minWidth: 110);
+            // + New Map (orange oval, chunky)
+            var newBtn = AddHeaderButton(header, "+ New Map", StyleHelper.Orange, minWidth: 130, height: 44);
             newBtn.onClick.AddListener(OpenNewMapDialog);
 
-            // ✕ Close (red)
+            // ✕ Close (red oval)
             var closeBtn = AddHeaderButton(header, "✕ Close",
-                new Color(0.60f, 0.15f, 0.15f, 1f), minWidth: 80);
+                new Color(0.75f, 0.15f, 0.15f, 1f), minWidth: 90, height: 44);
             closeBtn.onClick.AddListener(Close);
         }
 
         private Button AddHeaderButton(RectTransform parent, string text, Color color,
-            float minWidth = 100)
+            float minWidth = 100, float height = 38)
         {
             var go = new GameObject("HBtn_" + text);
             go.transform.SetParent(parent, false);
 
             var img   = go.AddComponent<Image>();
             img.color  = color;
-            img.sprite = StyleHelper.MakeRoundedSprite();
+            img.sprite = StyleHelper.GetButtonSprite();
             img.type   = Image.Type.Sliced;
 
             var btn = go.AddComponent<Button>();
@@ -184,20 +185,21 @@ namespace BoplMapEditor.UI
 
             var le = go.AddComponent<LayoutElement>();
             le.minWidth   = minWidth;
-            le.minHeight  = 38;
+            le.minHeight  = height;
             le.flexibleHeight = 0;
 
             var lblGo = new GameObject("L");
             lblGo.transform.SetParent(go.transform, false);
             var tmp = lblGo.AddComponent<TextMeshProUGUI>();
-            StyleHelper.StyleText(tmp, 13f, bold: true);
+            StyleHelper.StyleText(tmp, 14f, bold: true);
             tmp.text = text;
+            tmp.fontStyle = FontStyles.Bold | FontStyles.UpperCase;
             tmp.raycastTarget = false;
             var lrt = lblGo.GetComponent<RectTransform>();
             lrt.anchorMin = Vector2.zero;
             lrt.anchorMax = Vector2.one;
-            lrt.offsetMin = new Vector2(8, 0);
-            lrt.offsetMax = new Vector2(-8, 0);
+            lrt.offsetMin = new Vector2(10, 0);
+            lrt.offsetMax = new Vector2(-10, 0);
 
             return btn;
         }
@@ -210,39 +212,40 @@ namespace BoplMapEditor.UI
             _newMapDialog.transform.SetParent(root, false);
 
             var overlay = _newMapDialog.AddComponent<Image>();
-            overlay.color = new Color(0f, 0f, 0f, 0.70f);
+            overlay.color = new Color(0f, 0f, 0f, 0.78f);
             var ort = _newMapDialog.GetComponent<RectTransform>();
             ort.anchorMin = Vector2.zero;
             ort.anchorMax = Vector2.one;
             ort.offsetMin = ort.offsetMax = Vector2.zero;
 
-            // Dialog box: 360 × 200
+            // Dialog box: 400 × 240 — centered, rounded panel
             var box = UIBuilder.Panel(ort, "Box",
-                new Color(0.10f, 0.13f, 0.20f, 1f),
+                new Color(0.07f, 0.11f, 0.20f, 1f),
                 new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f),
-                new Vector2(-180f, -100f), new Vector2(180f, 100f));
+                new Vector2(-200f, -120f), new Vector2(200f, 120f));
 
             var layout = box.gameObject.AddComponent<VerticalLayoutGroup>();
-            layout.padding = new RectOffset(24, 24, 20, 20);
-            layout.spacing = 12;
+            layout.padding = new RectOffset(28, 28, 22, 22);
+            layout.spacing = 14;
             layout.childForceExpandWidth  = true;
             layout.childForceExpandHeight = false;
 
-            // Title
+            // Title — large, bold, game style
             var titleGo  = new GameObject("Title");
             titleGo.transform.SetParent(box, false);
             var titleTmp = titleGo.AddComponent<TextMeshProUGUI>();
-            StyleHelper.StyleText(titleTmp, 17f, bold: true);
+            StyleHelper.StyleText(titleTmp, 22f, bold: true);
             titleTmp.text      = "NEW MAP";
+            titleTmp.fontStyle = FontStyles.Bold | FontStyles.UpperCase;
             titleTmp.alignment = TextAlignmentOptions.Center;
-            titleGo.AddComponent<LayoutElement>().minHeight = 26;
+            titleGo.AddComponent<LayoutElement>().minHeight = 30;
 
             UIBuilder.AddRule(box, StyleHelper.DarkBorder);
 
             // Input field
             _newMapNameField = UIBuilder.MakeInputField(box, "Enter map name...",
-                Vector2.zero, new Vector2(312f, 40f));
-            _newMapNameField.gameObject.AddComponent<LayoutElement>().minHeight = 40;
+                Vector2.zero, new Vector2(344f, 42f));
+            _newMapNameField.gameObject.AddComponent<LayoutElement>().minHeight = 42;
             _newMapNameField.onValueChanged.AddListener(_ => ClearError());
 
             // Error label
@@ -259,10 +262,10 @@ namespace BoplMapEditor.UI
             var btnRow = new GameObject("Buttons");
             btnRow.transform.SetParent(box, false);
             var hlg = btnRow.AddComponent<HorizontalLayoutGroup>();
-            hlg.spacing               = 10;
+            hlg.spacing               = 12;
             hlg.childForceExpandWidth  = true;
             hlg.childForceExpandHeight = true;
-            btnRow.AddComponent<LayoutElement>().minHeight = 38;
+            btnRow.AddComponent<LayoutElement>().minHeight = 42;
 
             var cancelBtn = UIBuilder.MakeButton(btnRow.GetComponent<RectTransform>(),
                 "Cancel", StyleHelper.DarkBlue, Vector2.zero, Vector2.zero);
@@ -351,27 +354,27 @@ namespace BoplMapEditor.UI
             var rowGo = new GameObject("Row_" + map.Name);
             rowGo.transform.SetParent(_listContent, false);
 
-            // Row background
+            // Row background — blue game tones, taller rows
             var rowImg = rowGo.AddComponent<Image>();
             rowImg.color = isDefault
-                ? new Color(0.10f, 0.13f, 0.20f, altBg ? 0.80f : 0.60f)
-                : new Color(0.08f, 0.10f, 0.16f, altBg ? 0.80f : 0.60f);
-            rowImg.sprite = StyleHelper.MakeRoundedSprite();
+                ? new Color(0.10f, 0.20f, 0.35f, altBg ? 0.95f : 0.80f)
+                : new Color(0.08f, 0.15f, 0.25f, altBg ? 0.95f : 0.80f);
+            rowImg.sprite = StyleHelper.GetButtonSprite();
             rowImg.type   = Image.Type.Sliced;
 
             var rowHlg = rowGo.AddComponent<HorizontalLayoutGroup>();
-            rowHlg.padding = new RectOffset(12, 8, 4, 4);
-            rowHlg.spacing = 8;
+            rowHlg.padding = new RectOffset(14, 10, 6, 6);
+            rowHlg.spacing = 10;
             rowHlg.childAlignment         = TextAnchor.MiddleLeft;
             rowHlg.childForceExpandWidth  = false;
             rowHlg.childForceExpandHeight = true;
-            rowGo.AddComponent<LayoutElement>().minHeight = 48f;
+            rowGo.AddComponent<LayoutElement>().minHeight = 56f;
 
-            // Map name (bold, left)
+            // Map name — bigger, bold, white
             var nameGo  = new GameObject("Name");
             nameGo.transform.SetParent(rowGo.transform, false);
             var nameTmp = nameGo.AddComponent<TextMeshProUGUI>();
-            StyleHelper.StyleText(nameTmp, 14f, bold: true);
+            StyleHelper.StyleText(nameTmp, 18f, bold: true);
             nameTmp.text          = map.Name;
             nameTmp.color         = StyleHelper.TextPrimary;
             nameTmp.alignment     = TextAlignmentOptions.Left;
@@ -385,50 +388,51 @@ namespace BoplMapEditor.UI
                 var badgeGo  = new GameObject("Badge");
                 badgeGo.transform.SetParent(rowGo.transform, false);
                 var badgeImg = badgeGo.AddComponent<Image>();
-                badgeImg.color  = new Color(StyleHelper.Blue.r, StyleHelper.Blue.g, StyleHelper.Blue.b, 0.70f);
+                badgeImg.color  = new Color(StyleHelper.Blue.r, StyleHelper.Blue.g, StyleHelper.Blue.b, 0.80f);
                 badgeImg.sprite = StyleHelper.MakeRoundedSpriteSmall();
                 badgeImg.type   = Image.Type.Sliced;
                 var badgeLe = badgeGo.AddComponent<LayoutElement>();
-                badgeLe.minWidth  = 62f;
-                badgeLe.minHeight = 22f;
+                badgeLe.minWidth  = 68f;
+                badgeLe.minHeight = 24f;
                 badgeLe.flexibleHeight = 0;
 
                 var badgeTxtGo  = new GameObject("T");
                 badgeTxtGo.transform.SetParent(badgeGo.transform, false);
                 var badgeTmp = badgeTxtGo.AddComponent<TextMeshProUGUI>();
-                StyleHelper.StyleText(badgeTmp, 9f, bold: true);
+                StyleHelper.StyleText(badgeTmp, 10f, bold: true);
                 badgeTmp.text          = "DEFAULT";
+                badgeTmp.fontStyle     = FontStyles.Bold | FontStyles.UpperCase;
                 badgeTmp.raycastTarget = false;
                 var brt = badgeTxtGo.GetComponent<RectTransform>();
                 brt.anchorMin = Vector2.zero; brt.anchorMax = Vector2.one;
                 brt.offsetMin = new Vector2(4, 2); brt.offsetMax = new Vector2(-4, -2);
             }
 
-            // Platform count (muted, right-ish)
+            // Platform count — muted, smaller
             var countGo  = new GameObject("Count");
             countGo.transform.SetParent(rowGo.transform, false);
             var countTmp = countGo.AddComponent<TextMeshProUGUI>();
-            StyleHelper.StyleText(countTmp, 11f);
+            StyleHelper.StyleText(countTmp, 13f);
             countTmp.text          = map.Platforms.Count + " platforms";
             countTmp.color         = StyleHelper.TextSecondary;
             countTmp.alignment     = TextAlignmentOptions.Right;
             countTmp.raycastTarget = false;
-            countGo.AddComponent<LayoutElement>().minWidth = 90f;
+            countGo.AddComponent<LayoutElement>().minWidth = 96f;
 
-            // [Edit] button (blue)
-            var editBtn = MakeRowButton(rowGo.transform, "Edit", StyleHelper.Blue, 60f);
+            // [Edit] button — blue oval, chunky
+            var editBtn = MakeRowButton(rowGo.transform, "Edit", StyleHelper.Blue, 70f, 36f);
             var captureMap = map;
             editBtn.onClick.AddListener(() => {
                 Close();
                 _editorWindow.Open(captureMap.Clone());
             });
 
-            // [Del] button (red) — user maps only
+            // [Del] button — red oval, user maps only
             if (!isDefault && fileName != null)
             {
                 string captureName = fileName;
                 var delBtn = MakeRowButton(rowGo.transform, "Del",
-                    new Color(0.65f, 0.12f, 0.12f, 0.90f), 40f);
+                    new Color(0.72f, 0.12f, 0.12f, 0.95f), 44f, 36f);
                 delBtn.onClick.AddListener(() => {
                     MapSerializer.DeleteMap(captureName);
                     Refresh();
@@ -436,14 +440,14 @@ namespace BoplMapEditor.UI
             }
         }
 
-        private Button MakeRowButton(Transform parent, string text, Color color, float w)
+        private Button MakeRowButton(Transform parent, string text, Color color, float w, float h)
         {
             var go = new GameObject("RBtn_" + text);
             go.transform.SetParent(parent, false);
 
             var img   = go.AddComponent<Image>();
             img.color  = color;
-            img.sprite = StyleHelper.MakeRoundedSprite();
+            img.sprite = StyleHelper.GetButtonSprite();
             img.type   = Image.Type.Sliced;
 
             var btn = go.AddComponent<Button>();
@@ -452,14 +456,15 @@ namespace BoplMapEditor.UI
 
             var le = go.AddComponent<LayoutElement>();
             le.minWidth   = w;
-            le.minHeight  = 32f;
+            le.minHeight  = h;
             le.flexibleHeight = 0;
 
             var lblGo = new GameObject("L");
             lblGo.transform.SetParent(go.transform, false);
             var tmp = lblGo.AddComponent<TextMeshProUGUI>();
-            StyleHelper.StyleText(tmp, 12f, bold: true);
-            tmp.text = text;
+            StyleHelper.StyleText(tmp, 13f, bold: true);
+            tmp.text      = text;
+            tmp.fontStyle = FontStyles.Bold | FontStyles.UpperCase;
             tmp.raycastTarget = false;
             var lrt = lblGo.GetComponent<RectTransform>();
             lrt.anchorMin = Vector2.zero; lrt.anchorMax = Vector2.one;

@@ -41,7 +41,7 @@ namespace BoplMapEditor.UI
         private RectTransform   _browserContent = null!;
 
         // Layout constants (at 1280×720 reference)
-        private const float TOOLBAR_H  = 48f;
+        private const float TOOLBAR_H  = 54f;
         private const float SIDEBAR_W  = 220f;
 
         // ── Factory ───────────────────────────────────────────────────────
@@ -98,7 +98,7 @@ namespace BoplMapEditor.UI
 
             // ── Toolbar (top strip) ───────────────────────────────────────
             var toolbar = UIBuilder.FlatPanel(bg, "Toolbar",
-                new Color(0.06f, 0.08f, 0.14f, 0.85f),
+                new Color(0.05f, 0.08f, 0.15f, 0.92f),
                 new Vector2(0f, 1f), Vector2.one,
                 new Vector2(0f, -TOOLBAR_H), Vector2.zero);
             BuildToolbar(toolbar);
@@ -126,7 +126,7 @@ namespace BoplMapEditor.UI
             var sidebarGo = new GameObject("Sidebar");
             sidebarGo.transform.SetParent(main, false);
             var sidebarImg = sidebarGo.AddComponent<Image>();
-            sidebarImg.color = new Color(0.06f, 0.08f, 0.14f, 0.90f);
+            sidebarImg.color = new Color(0.06f, 0.10f, 0.18f, 0.93f);
             var sidebarRt = sidebarGo.GetComponent<RectTransform>();
             sidebarRt.anchorMin = new Vector2(1f, 0f);
             sidebarRt.anchorMax = Vector2.one;
@@ -184,22 +184,22 @@ namespace BoplMapEditor.UI
             var closeBtnGo = new GameObject("CloseBtn");
             closeBtnGo.transform.SetParent(root, false);
             var closeBtnImg = closeBtnGo.AddComponent<Image>();
-            closeBtnImg.color = new Color(0.70f, 0.15f, 0.15f, 1f);
-            closeBtnImg.sprite = StyleHelper.MakeRoundedSprite();
+            closeBtnImg.color = new Color(0.78f, 0.14f, 0.14f, 1f);
+            closeBtnImg.sprite = StyleHelper.GetButtonSprite();
             closeBtnImg.type = Image.Type.Sliced;
             var closeBtnBtn = closeBtnGo.AddComponent<Button>();
-            StyleHelper.StyleButton(closeBtnBtn, new Color(0.70f, 0.15f, 0.15f, 1f));
+            StyleHelper.StyleButton(closeBtnBtn, new Color(0.78f, 0.14f, 0.14f, 1f));
             StyleHelper.AddPressColorSwap(closeBtnBtn);
             var closeBtnRt = closeBtnGo.GetComponent<RectTransform>();
             closeBtnRt.anchorMin = new Vector2(1f, 1f);
             closeBtnRt.anchorMax = new Vector2(1f, 1f);
             closeBtnRt.pivot     = new Vector2(1f, 1f);
-            closeBtnRt.sizeDelta = new Vector2(40f, 40f);
-            closeBtnRt.anchoredPosition = new Vector2(-6f, -6f);
+            closeBtnRt.sizeDelta = new Vector2(48f, 48f);
+            closeBtnRt.anchoredPosition = new Vector2(-6f, -4f);
             var closeLblGo = new GameObject("Label");
             closeLblGo.transform.SetParent(closeBtnGo.transform, false);
             var closeTmp = closeLblGo.AddComponent<TextMeshProUGUI>();
-            StyleHelper.StyleText(closeTmp, 16f, bold: true);
+            StyleHelper.StyleText(closeTmp, 18f, bold: true);
             closeTmp.text = "✕";
             closeTmp.raycastTarget = false;
             var closeLblRt = closeLblGo.GetComponent<RectTransform>();
@@ -224,14 +224,14 @@ namespace BoplMapEditor.UI
         private void BuildToolbar(RectTransform toolbar)
         {
             var layout = toolbar.gameObject.AddComponent<HorizontalLayoutGroup>();
-            layout.padding = new RectOffset(10, 56, 6, 6);  // right pad leaves room for close btn
-            layout.spacing = 6;
+            layout.padding = new RectOffset(12, 62, 7, 7);  // right pad leaves room for close btn
+            layout.spacing = 7;
             layout.childAlignment      = TextAnchor.MiddleLeft;
             layout.childForceExpandHeight = true;
             layout.childForceExpandWidth  = false;
 
-            // Title
-            AddToolbarLabel(toolbar, "✏ MAP EDITOR", 13f, bold: true, minWidth: 100);
+            // Title — bold, game-style all-caps
+            AddToolbarLabel(toolbar, "✏ MAP EDITOR", 16f, bold: true, minWidth: 120);
 
             AddToolbarSep(toolbar);
 
@@ -292,7 +292,7 @@ namespace BoplMapEditor.UI
 
             var img   = go.AddComponent<Image>();
             img.color = color;
-            img.sprite = StyleHelper.MakeRoundedSprite();
+            img.sprite = StyleHelper.GetButtonSprite();
             img.type  = Image.Type.Sliced;
 
             var btn = go.AddComponent<Button>();
@@ -306,14 +306,15 @@ namespace BoplMapEditor.UI
             var lblGo = new GameObject("L");
             lblGo.transform.SetParent(go.transform, false);
             var tmp = lblGo.AddComponent<TextMeshProUGUI>();
-            StyleHelper.StyleText(tmp, 11f, bold: true);
-            tmp.text = text;
+            StyleHelper.StyleText(tmp, 12f, bold: true);
+            tmp.text      = text;
+            tmp.fontStyle = FontStyles.Bold | FontStyles.UpperCase;
             tmp.raycastTarget = false;
             var lrt = lblGo.GetComponent<RectTransform>();
             lrt.anchorMin = Vector2.zero;
             lrt.anchorMax = Vector2.one;
-            lrt.offsetMin = new Vector2(3, 1);
-            lrt.offsetMax = new Vector2(-3, -1);
+            lrt.offsetMin = new Vector2(4, 1);
+            lrt.offsetMax = new Vector2(-4, -1);
 
             return btn;
         }
@@ -328,6 +329,7 @@ namespace BoplMapEditor.UI
             tmp.text  = text;
             tmp.color = bold ? StyleHelper.TextPrimary : StyleHelper.TextSecondary;
             tmp.alignment = TextAlignmentOptions.Left;
+            if (bold) tmp.fontStyle = FontStyles.Bold | FontStyles.UpperCase;
             go.AddComponent<LayoutElement>().minWidth = minWidth;
             return tmp;
         }
@@ -340,7 +342,7 @@ namespace BoplMapEditor.UI
             img.color = StyleHelper.DarkBorder;
             var le = go.AddComponent<LayoutElement>();
             le.minWidth  = 1;
-            le.minHeight = 28;
+            le.minHeight = 32;
             le.flexibleHeight = 0;
         }
 
@@ -352,8 +354,11 @@ namespace BoplMapEditor.UI
             float innerW = SIDEBAR_W - padX * 2f;
             float x0 = padX;
 
-            // "MAP NAME" label
-            MakeAbsSideLabel(sidebar, "MAP NAME", x0, innerW, -20f, 16f, bold: true, muted: true);
+            // "MAP NAME" section label — all-caps muted game style
+            {
+                var lbl = MakeAbsSideLabel(sidebar, "MAP NAME", x0, innerW, -20f, 16f, bold: true, muted: true);
+                StyleHelper.StyleTextAllCaps(lbl, 12f);
+            }
 
             // Map name input field
             _mapNameField = MakeAbsInputField(sidebar, "Map name...", x0, innerW, -52f, 32f);
@@ -376,33 +381,53 @@ namespace BoplMapEditor.UI
             // Divider
             MakeAbsDivider(sidebar, -176f, innerW, x0);
 
-            // PLATFORMS: N label
-            _platformCountLabel = MakeAbsSideLabel(sidebar, "Platforms: 0", x0, innerW, -192f, 16f);
+            // PLATFORMS: N label — colored dot prefix, muted
+            _platformCountLabel = MakeAbsSideLabel(sidebar, "● Platforms: 0", x0, innerW, -192f, 16f);
             _platformCountLabel.color = StyleHelper.TextSecondary;
+            _platformCountLabel.fontSize = 12f;
 
             // Divider
             MakeAbsDivider(sidebar, -216f, innerW, x0);
 
-            // SELECTED label
-            MakeAbsSideLabel(sidebar, "SELECTED", x0, innerW, -232f, 16f, bold: true, muted: true);
+            // SELECTED section label — all-caps muted
+            {
+                var lbl = MakeAbsSideLabel(sidebar, "● SELECTED", x0, innerW, -232f, 16f, bold: true, muted: true);
+                StyleHelper.StyleTextAllCaps(lbl, 11f);
+            }
 
             // Selected info label
             _selectedInfoLabel = MakeAbsSideLabel(sidebar, "None selected", x0, innerW, -252f, 18f);
             _selectedInfoLabel.color = StyleHelper.TextMuted;
             _selectedInfoLabel.fontSize = 12f;
 
-            // X/Y row
+            // X/Y row — X=red-ish, Y=green-ish axis colors
             float lblW = 20f;
             float inputW = (innerW - lblW * 2f - 8f) * 0.5f;
-            MakeAbsSideLabel(sidebar, "X", x0, lblW, -278f, 24f);
+            {
+                var xl = MakeAbsSideLabel(sidebar, "X", x0, lblW, -278f, 24f);
+                xl.color = new Color(0.95f, 0.45f, 0.45f, 1f);
+                xl.fontStyle = FontStyles.Bold;
+            }
             _propX = MakeAbsInputField(sidebar, "0.00", x0 + lblW + 2f, inputW, -278f, 24f);
-            MakeAbsSideLabel(sidebar, "Y", x0 + lblW + 2f + inputW + 4f, lblW, -278f, 24f);
+            {
+                var yl = MakeAbsSideLabel(sidebar, "Y", x0 + lblW + 2f + inputW + 4f, lblW, -278f, 24f);
+                yl.color = new Color(0.45f, 0.90f, 0.55f, 1f);
+                yl.fontStyle = FontStyles.Bold;
+            }
             _propY = MakeAbsInputField(sidebar, "0.00", x0 + lblW * 2f + 2f + inputW + 4f + 2f, inputW, -278f, 24f);
 
-            // W/H row
-            MakeAbsSideLabel(sidebar, "W", x0, lblW, -310f, 24f);
+            // W/H row — W/H=blue-ish
+            {
+                var wl = MakeAbsSideLabel(sidebar, "W", x0, lblW, -310f, 24f);
+                wl.color = new Color(0.45f, 0.70f, 1.00f, 1f);
+                wl.fontStyle = FontStyles.Bold;
+            }
             _propHW = MakeAbsInputField(sidebar, "8.00", x0 + lblW + 2f, inputW, -310f, 24f);
-            MakeAbsSideLabel(sidebar, "H", x0 + lblW + 2f + inputW + 4f, lblW, -310f, 24f);
+            {
+                var hl = MakeAbsSideLabel(sidebar, "H", x0 + lblW + 2f + inputW + 4f, lblW, -310f, 24f);
+                hl.color = new Color(0.45f, 0.70f, 1.00f, 1f);
+                hl.fontStyle = FontStyles.Bold;
+            }
             _propHH = MakeAbsInputField(sidebar, "1.50", x0 + lblW * 2f + 2f + inputW + 4f + 2f, inputW, -310f, 24f);
 
             // Rad/Rot row — use same layout formula as X/Y and W/H
@@ -524,7 +549,7 @@ namespace BoplMapEditor.UI
 
             var img = go.AddComponent<Image>();
             img.color  = color;
-            img.sprite = StyleHelper.MakeRoundedSprite();
+            img.sprite = StyleHelper.GetButtonSprite();
             img.type   = Image.Type.Sliced;
 
             var btn = go.AddComponent<Button>();
@@ -644,7 +669,7 @@ namespace BoplMapEditor.UI
             if (string.IsNullOrEmpty(name)) name = "Untitled";
             _ctrl.CurrentMap.Name = name;
             _ctrl.SaveCurrentMap(name);
-            _platformCountLabel.text = "Saved! (" + _ctrl.CurrentMap.Platforms.Count + " platforms)";
+            _platformCountLabel.text = "● Saved! (" + _ctrl.CurrentMap.Platforms.Count + " platforms)";
             Plugin.Log.LogInfo("[MapEditorWindow] Saved map '" + name + "'");
         }
 
@@ -714,7 +739,7 @@ namespace BoplMapEditor.UI
 
         public void RefreshSidebar()
         {
-            _platformCountLabel.text = "Platforms: " + _ctrl.CurrentMap.Platforms.Count;
+            _platformCountLabel.text = "● Platforms: " + _ctrl.CurrentMap.Platforms.Count;
             int  sel   = _ctrl.SelectedPlatformIndex;
             bool hasSel = sel >= 0 && sel < _ctrl.CurrentMap.Platforms.Count;
 
@@ -782,7 +807,7 @@ namespace BoplMapEditor.UI
                 bool  active = i == (int)_ctrl.ActiveTool;
                 var   img    = _toolButtons[i].GetComponent<Image>();
                 if (img != null)
-                    img.color = active ? tc[i] : tc[i] * 0.45f;
+                    img.color = active ? tc[i] : tc[i] * 0.50f;
             }
         }
 
@@ -795,7 +820,7 @@ namespace BoplMapEditor.UI
                 if (img != null)
                     img.color = active
                         ? StyleHelper.PlatformColors[i]
-                        : StyleHelper.PlatformColors[i] * 0.42f;
+                        : StyleHelper.PlatformColors[i] * 0.50f;
             }
         }
 
@@ -808,7 +833,7 @@ namespace BoplMapEditor.UI
                 if (img != null)
                     img.color = active
                         ? StyleHelper.ThemeColors[i]
-                        : StyleHelper.ThemeColors[i] * 0.42f;
+                        : StyleHelper.ThemeColors[i] * 0.50f;
             }
         }
     }
