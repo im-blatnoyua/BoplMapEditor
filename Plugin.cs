@@ -23,22 +23,35 @@ namespace BoplMapEditor
         {
             Instance = this;
             Log = Logger;
+            Log.LogInfo("[BoplMapEditor] Awake() started");
 
+            try
+            {
             Data.MapSerializer.EnsureDirectory();
+            Log.LogInfo("[BoplMapEditor] EnsureDirectory OK");
             Editor = new MapEditorController();
+            Log.LogInfo("[BoplMapEditor] MapEditorController OK");
 
             var harmony = new Harmony(MyPluginInfo.PLUGIN_GUID);
             harmony.PatchAll();
+            Log.LogInfo("[BoplMapEditor] PatchAll OK");
 
             // Dynamically patch the StartRequestPacket handler
             PatchStartRequestHandler(harmony);
 
             // Create editor window and browser screen
             EditorWindow = MapEditorWindow.Create(Editor);
+            Log.LogInfo("[BoplMapEditor] EditorWindow OK");
             BrowserScreen = MapBrowserScreen.Create(EditorWindow);
+            Log.LogInfo("[BoplMapEditor] BrowserScreen OK");
 
             Log.LogInfo($"[BoplMapEditor] Loaded v{MyPluginInfo.PLUGIN_VERSION}. " +
                         "A 'Map Editor' button will appear in the lobby.");
+            }
+            catch (Exception ex)
+            {
+                Log.LogError($"[BoplMapEditor] Awake() FAILED: {ex}");
+            }
         }
 
         private void PatchStartRequestHandler(Harmony harmony)
