@@ -40,20 +40,40 @@ namespace BoplMapEditor.Patches
                 const string TAG = "BoplMapEditorBtn";
                 if (GameObject.Find(TAG) != null) return;
 
-                // Overlay canvas so button renders above all lobby UI
-                var canvasGo = new GameObject(TAG);
-                Object.DontDestroyOnLoad(canvasGo);
-                var canvas = canvasGo.AddComponent<Canvas>();
-                canvas.renderMode = RenderMode.ScreenSpaceOverlay;
-                canvas.sortingOrder = 1000;
-                var scaler = canvasGo.AddComponent<CanvasScaler>();
-                scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
-                scaler.referenceResolution = new Vector2(1920, 1080);
-                canvasGo.AddComponent<GraphicRaycaster>();
+                // Find the game's existing Canvas to inject into
+                Transform buttonParent = null;
+                var allCanvases = Object.FindObjectsOfType<Canvas>(true);
+                Plugin.Log.LogInfo($"[LobbyButtonPatch] Found {allCanvases.Length} canvases in scene.");
+                foreach (var c in allCanvases)
+                {
+                    Plugin.Log.LogInfo($"[LobbyButtonPatch]   Canvas: {c.name} mode={c.renderMode} order={c.sortingOrder} active={c.gameObject.activeInHierarchy}");
+                    if (c.renderMode == RenderMode.ScreenSpaceOverlay && c.gameObject.activeInHierarchy)
+                    {
+                        buttonParent = c.transform;
+                        Plugin.Log.LogInfo($"[LobbyButtonPatch] Using existing canvas: {c.name}");
+                        break;
+                    }
+                }
 
-                // Button — matches ReadyButton dimensions and feel
-                var btnGo = new GameObject("MapEditorButton");
-                btnGo.transform.SetParent(canvasGo.transform, false);
+                // Fallback: create our own canvas
+                if (buttonParent == null)
+                {
+                    Plugin.Log.LogWarning("[LobbyButtonPatch] No overlay canvas found — creating own canvas.");
+                    var canvasGo = new GameObject(TAG + "_Canvas");
+                    Object.DontDestroyOnLoad(canvasGo);
+                    var canvas = canvasGo.AddComponent<Canvas>();
+                    canvas.renderMode = RenderMode.ScreenSpaceOverlay;
+                    canvas.sortingOrder = 1000;
+                    var scaler = canvasGo.AddComponent<CanvasScaler>();
+                    scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
+                    scaler.referenceResolution = new Vector2(1920, 1080);
+                    canvasGo.AddComponent<GraphicRaycaster>();
+                    buttonParent = canvasGo.transform;
+                }
+
+                // Button
+                var btnGo = new GameObject(TAG);
+                btnGo.transform.SetParent(buttonParent, false);
 
                 var img = btnGo.AddComponent<Image>();
                 img.color  = StyleHelper.Blue;
