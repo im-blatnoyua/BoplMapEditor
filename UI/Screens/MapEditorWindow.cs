@@ -40,6 +40,7 @@ namespace BoplMapEditor.UI
 
         // Viewport image — made transparent when a background scene is loaded
         private Image _viewportImg = null!;
+        private Image _bgImg = null!;
 
         // Tab fields — kept for API compatibility, wired to dummy objects
         private GameObject       _platformsTab   = null!;
@@ -107,10 +108,14 @@ namespace BoplMapEditor.UI
         {
             var root = _canvas.GetComponent<RectTransform>();
 
-            // Solid dark background — game does NOT show through (SMM2 style: new page feel)
-            var bg = UIBuilder.FlatPanel(root, "Background",
-                new Color(0.08f, 0.11f, 0.18f, 1.0f),
-                Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
+            var bgGo = new GameObject("Background");
+            bgGo.transform.SetParent(root, false);
+            _bgImg = bgGo.AddComponent<Image>();
+            _bgImg.color = new Color(0.08f, 0.11f, 0.18f, 1.0f);
+            var bgRt = bgGo.GetComponent<RectTransform>();
+            bgRt.anchorMin = Vector2.zero; bgRt.anchorMax = Vector2.one;
+            bgRt.offsetMin = bgRt.offsetMax = Vector2.zero;
+            var bg = bgRt;
 
             // ── Top bar ───────────────────────────────────────────────────
             var topBar = UIBuilder.FlatPanel(bg, "TopBar",
@@ -1142,12 +1147,11 @@ namespace BoplMapEditor.UI
             }
 
             // Make viewport transparent when a background scene is loaded
+            bool sceneLoaded = Util.BackgroundSceneLoader.IsLoaded;
             if (_viewportImg != null)
-            {
-                _viewportImg.color = Util.BackgroundSceneLoader.IsLoaded
-                    ? Color.clear
-                    : new Color(0.08f, 0.11f, 0.18f, 1.0f);
-            }
+                _viewportImg.color = sceneLoaded ? Color.clear : new Color(0.08f, 0.11f, 0.18f, 1.0f);
+            if (_bgImg != null)
+                _bgImg.color = sceneLoaded ? Color.clear : new Color(0.08f, 0.11f, 0.18f, 1.0f);
         }
     }
 
