@@ -5,22 +5,21 @@ using UnityEngine.SceneManagement;
 namespace BoplMapEditor.Util
 {
     // Loads a game level scene additively as editor background.
-    // Uses SceneUtility to find correct scene indices from build settings.
     public static class BackgroundSceneLoader
     {
         public static bool IsLoaded => _loadedSceneName != null;
         private static string? _loadedSceneName;
         private static LevelType _loadedLevelType;
 
-        // Scene path keywords to search for each theme in build settings
-        private static readonly string[][] _pathKeywords =
+        // Short scene names to try for each theme (fallback chain)
+        private static readonly string[][] _sceneNames =
         {
-            // Grass — FFA level, not Snow/Space subfolder
-            new[] { "/FFA/Level1.unity", "/FFA/Level2.unity", "/FFA/Level3.unity" },
+            // Grass
+            new[] { "Level1", "Level2", "Level3", "Level4", "Level5" },
             // Snow
-            new[] { "/Snow/Level14.unity", "/Snow/Level15.unity", "/Snow/Level17.unity" },
+            new[] { "Level14", "Level15", "Level17", "Level18" },
             // Space
-            new[] { "/Space/Level35.unity", "/Space/Level37.unity", "/Space/Level39.unity" },
+            new[] { "Level35", "Level37", "Level39", "Level40" },
         };
 
         private static readonly LevelType[] _themeToLevelType =
@@ -30,38 +29,80 @@ namespace BoplMapEditor.Util
             LevelType.space,
         };
 
-        public static readonly string[] Labels = { "🌿 Grass", "❄ Snow", "🌌 Space" };
-
         // ── Public API ────────────────────────────────────────────────────
 
         public static void Load(int themeIndex)
         {
             Unload();
 
-            if (themeIndex < 0 || themeIndex >= _pathKeywords.Length) return;
-
-            int sceneIdx = FindSceneIndex(themeIndex);
-            if (sceneIdx < 0)
-            {
-                Plugin.Log.LogWarning($"[BackgroundSceneLoader] No scene found for theme {themeIndex}");
-                return;
-            }
+            if (themeIndex < 0 || themeIndex >= _sceneNames.Length) return;
 
             _loadedLevelType = _themeToLevelType[themeIndex];
 
-            try
+            foreach (var name in _sceneNames[themeIndex])
             {
-                string path = GetScenePathByIndex(sceneIdx);
-                _loadedSceneName = System.IO.Path.GetFileNameWithoutExtension(path);
-                SceneManager.sceneLoaded += OnSceneLoaded;
-                SceneManager.LoadScene(sceneIdx, LoadSceneMode.Additive);
-                Plugin.Log.LogInfo($"[BackgroundSceneLoader] Loading scene idx={sceneIdx} path='{path}'");
+                try
+                {
+                    SceneManager.LoadScene(name, LoadSceneMode.Additive);
+                    _loadedSceneName = name;
+                    SceneManager.sceneLoaded += OnSceneLoaded;
+                    Plugin.Log.LogInfo($"[BackgroundSceneLoader] Loading scene '{name}'");
+                    return;
+                }
+                catch (Exception)
+                {
+                    // scene not found — try next
+                }
             }
-            catch (Exception ex)
+
+            // If short names fail, try build index scanning
+            TryLoadByIndex(themeIndex);
+        }
+
+        private static void TryLoadByIndex(int themeIndex)
+        {
+            // Keywords in scene paths to identify grass/snow/space
+            string[] keywords = { "FFA/Level", "Snow/Level", "Space/Level" };
+            string keyword = keywords[themeIndex];
+
+            int total = SceneManager.sceneCountInBuildSettings;
+            Plugin.Log.LogInfo($"[BackgroundSceneLoader] Scanning {total} build scenes for '{keyword}'...");
+
+            for (int i = 6; i < total; i++) // skip menu scenes (0-5)
             {
-                Plugin.Log.LogError($"[BackgroundSceneLoader] Load error: {ex.Message}");
-                _loadedSceneName = null;
+                try
+                {
+                    // Try to figure out scene name by loading and checking
+                    // We can't easily get path without SceneUtility, so try by index
+                    if (themeIndex == 0 && i >= 6 && i <= 30)
+                    {
+                        SceneManager.LoadScene(i, LoadSceneMode.Additive);
+                        _loadedSceneName = $"scene_{i}";
+                        SceneManager.sceneLoaded += OnSceneLoaded;
+                        Plugin.Log.LogInfo($"[BackgroundSceneLoader] Loaded scene by index {i}");
+                        return;
+                    }
+                    else if (themeIndex == 1 && i >= 30 && i <= 60)
+                    {
+                        SceneManager.LoadScene(i, LoadSceneMode.Additive);
+                        _loadedSceneName = $"scene_{i}";
+                        SceneManager.sceneLoaded += OnSceneLoaded;
+                        Plugin.Log.LogInfo($"[BackgroundSceneLoader] Loaded scene by index {i}");
+                        return;
+                    }
+                    else if (themeIndex == 2 && i >= 60)
+                    {
+                        SceneManager.LoadScene(i, LoadSceneMode.Additive);
+                        _loadedSceneName = $"scene_{i}";
+                        SceneManager.sceneLoaded += OnSceneLoaded;
+                        Plugin.Log.LogInfo($"[BackgroundSceneLoader] Loaded scene by index {i}");
+                        return;
+                    }
+                }
+                catch (Exception) { break; }
             }
+
+            Plugin.Log.LogWarning($"[BackgroundSceneLoader] Could not find scene for theme {themeIndex}");
         }
 
         public static void Unload()
@@ -70,17 +111,11 @@ namespace BoplMapEditor.Util
 
             if (_loadedSceneName == null) return;
 
-            try
-            {
-                SceneManager.UnloadSceneAsync(_loadedSceneName);
-                Plugin.Log.LogInfo($"[BackgroundSceneLoader] Unloaded '{_loadedSceneName}'");
-            }
-            catch (Exception ex)
-            {
-                Plugin.Log.LogWarning($"[BackgroundSceneLoader] Unload error: {ex.Message}");
-            }
+            try { SceneManager.UnloadSceneAsync(_loadedSceneName); }
+            catch { }
 
             _loadedSceneName = null;
+            Plugin.Log.LogInfo("[BackgroundSceneLoader] Background scene unloaded.");
         }
 
         // ── Scene loaded callback ─────────────────────────────────────────
@@ -90,71 +125,36 @@ namespace BoplMapEditor.Util
             if (mode != LoadSceneMode.Additive) return;
             SceneManager.sceneLoaded -= OnSceneLoaded;
 
-            // Set level type so water/background systems work correctly
+            // Update loaded scene name to actual name
+            if (_loadedSceneName != null && _loadedSceneName.StartsWith("scene_"))
+                _loadedSceneName = scene.name;
+
+            // Set level type so water/background systems work
             Constants.leveltype = _loadedLevelType;
-            Plugin.Log.LogInfo($"[BackgroundSceneLoader] Scene '{scene.name}' loaded. LevelType={_loadedLevelType}");
+            Plugin.Log.LogInfo($"[BackgroundSceneLoader] '{scene.name}' ready. LevelType={_loadedLevelType}");
 
             // Disable game logic, keep visuals
             foreach (var root in scene.GetRootGameObjects())
                 DisableGameLogic(root);
 
-            // Scan new scene for real platform materials
+            // Scan for real platform materials from loaded level
             UI.StyleHelper.InvalidateMaterialCache();
             UI.StyleHelper.ScanPlatformMaterials();
         }
 
         private static void DisableGameLogic(GameObject root)
         {
-            // Disable these component types by name (avoid hard references)
             string[] killTypes = {
                 "GameSessionHandler", "PlayerHandler", "PlayerInit",
-                "StartHandler", "AbilitySpawner", "RoundTimer",
-                "BoplCharacter", "PlayerBody", "PlayerPhysics",
-                "AIPlayer", "ManualPlayerController",
+                "AbilitySpawner", "BoplCharacter", "PlayerBody",
             };
-
             foreach (var typeName in killTypes)
             {
                 var type = FindType(typeName);
                 if (type == null) continue;
                 foreach (var comp in root.GetComponentsInChildren(type, includeInactive: true))
-                {
                     if (comp is Behaviour b) b.enabled = false;
-                }
             }
-        }
-
-        // ── Helpers ───────────────────────────────────────────────────────
-
-        private static int FindSceneIndex(int themeIndex)
-        {
-            var keywords = _pathKeywords[themeIndex];
-            int total = SceneManager.sceneCountInBuildSettings;
-
-            foreach (var keyword in keywords)
-            {
-                for (int i = 0; i < total; i++)
-                {
-                    string path = GetScenePathByIndex(i);
-                    if (path.IndexOf(keyword, StringComparison.OrdinalIgnoreCase) >= 0)
-                        return i;
-                }
-            }
-            return -1;
-        }
-
-        // SceneUtility.GetScenePathByIndex via reflection (not in all Unity reference sets)
-        private static readonly System.Reflection.MethodInfo? _getScenePath =
-            System.Type.GetType("UnityEngine.SceneManagement.SceneUtility, UnityEngine.CoreModule")?
-                .GetMethod("GetScenePathByIndex",
-                    System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.Public,
-                    null, new[] { typeof(int) }, null);
-
-        private static string GetScenePathByIndex(int index)
-        {
-            if (_getScenePath != null)
-                return (_getScenePath.Invoke(null, new object[] { index }) as string) ?? "";
-            return "";
         }
 
         private static Type? FindType(string name)
