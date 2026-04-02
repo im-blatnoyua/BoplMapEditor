@@ -16,8 +16,28 @@ namespace BoplMapEditor
         public static Plugin Instance { get; private set; } = null!;
         public static ManualLogSource Log { get; private set; } = null!;
         public static MapEditorController Editor { get; private set; } = null!;
-        public static MapEditorWindow EditorWindow { get; private set; } = null!;
-        public static MapBrowserScreen BrowserScreen { get; private set; } = null!;
+
+        private static MapEditorWindow? _editorWindow;
+        private static MapBrowserScreen? _browserScreen;
+
+        // Created lazily on first use (after Unity rendering is ready)
+        public static MapEditorWindow EditorWindow
+        {
+            get { if (_editorWindow == null) CreateScreens(); return _editorWindow!; }
+        }
+        public static MapBrowserScreen BrowserScreen
+        {
+            get { if (_browserScreen == null) CreateScreens(); return _browserScreen!; }
+        }
+
+        private static void CreateScreens()
+        {
+            if (_editorWindow != null) return;
+            Log.LogInfo("[BoplMapEditor] Creating editor screens...");
+            _editorWindow = MapEditorWindow.Create(Editor);
+            _browserScreen = MapBrowserScreen.Create(_editorWindow);
+            Log.LogInfo("[BoplMapEditor] Editor screens created OK.");
+        }
 
         void Awake()
         {
@@ -27,8 +47,6 @@ namespace BoplMapEditor
 
             Data.MapSerializer.EnsureDirectory();
             Editor = new MapEditorController();
-            EditorWindow = MapEditorWindow.Create(Editor);
-            BrowserScreen = MapBrowserScreen.Create(EditorWindow);
             Log.LogInfo("[BoplMapEditor] Core objects created OK");
 
             var harmony = new Harmony(MyPluginInfo.PLUGIN_GUID);

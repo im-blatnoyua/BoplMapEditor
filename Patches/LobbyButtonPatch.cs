@@ -84,11 +84,14 @@ namespace BoplMapEditor.Patches
                 StyleHelper.StyleButton(btn, StyleHelper.Blue);
                 StyleHelper.AddPressColorSwap(btn);
 
-                // Position: bottom-left, above the corner
+                // Position: bottom-left corner, using screen pixels
                 var rt = btnGo.GetComponent<RectTransform>();
                 rt.anchorMin = rt.anchorMax = rt.pivot = new Vector2(0f, 0f);
-                rt.sizeDelta = new Vector2(210, 54);
-                rt.anchoredPosition = new Vector2(24, 24);
+                // Size and position in screen pixels (no CanvasScaler)
+                float scale = Screen.height / 1080f;
+                rt.sizeDelta = new Vector2(210 * scale, 54 * scale);
+                rt.anchoredPosition = new Vector2(24 * scale, 24 * scale);
+                Plugin.Log.LogInfo($"[LobbyButtonPatch] Screen={Screen.width}x{Screen.height} scale={scale} btnSize={rt.sizeDelta} btnPos={rt.anchoredPosition}");
 
                 // Animated hover scale — uses ReadyButton's AnimationCurve
                 var hoverAnim = btnGo.AddComponent<HoverScaleAnimator>();
