@@ -53,9 +53,9 @@ namespace BoplMapEditor.UI
         private RectTransform _browserContent = null!;
 
         // Layout constants
-        private const float TOP_BAR_H    = 52f;
-        private const float LEFT_PANEL_W = 88f;
-        private const float RIGHT_PANEL_W = 200f;
+        private const float TOP_BAR_H    = 60f;
+        private const float LEFT_PANEL_W = 100f;
+        private const float RIGHT_PANEL_W = 210f;
 
         // ── Factory ───────────────────────────────────────────────────────
 
@@ -111,9 +111,9 @@ namespace BoplMapEditor.UI
                 new Color(0.08f, 0.11f, 0.18f, 1.0f),
                 Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
 
-            // ── Top bar (full width, 52px) ─────────────────────────────────
+            // ── Top bar ───────────────────────────────────────────────────
             var topBar = UIBuilder.FlatPanel(bg, "TopBar",
-                new Color(0.05f, 0.07f, 0.13f, 0.97f),
+                new Color(0.07f, 0.10f, 0.20f, 1.0f),
                 new Vector2(0f, 1f), Vector2.one,
                 new Vector2(0f, -TOP_BAR_H), Vector2.zero);
             BuildTopBar(topBar);
@@ -143,7 +143,7 @@ namespace BoplMapEditor.UI
             var leftPanelGo = new GameObject("LeftPanel");
             leftPanelGo.transform.SetParent(main, false);
             var leftPanelImg = leftPanelGo.AddComponent<Image>();
-            leftPanelImg.color = new Color(0.05f, 0.07f, 0.13f, 0.97f);
+            leftPanelImg.color = new Color(0.07f, 0.10f, 0.20f, 1.0f);
             var leftPanelRt = leftPanelGo.GetComponent<RectTransform>();
             leftPanelRt.anchorMin = new Vector2(0f, 0f);
             leftPanelRt.anchorMax = new Vector2(0f, 1f);
@@ -250,17 +250,17 @@ namespace BoplMapEditor.UI
             layout.childForceExpandWidth  = false;
 
             // Undo button
-            _undoBtn = AddTopBarButton(topBar, "↩", StyleHelper.DarkBlue, minWidth: 44, minHeight: 36);
+            _undoBtn = AddTopBarButton(topBar, "↩", StyleHelper.DarkBlue, minWidth: 52, minHeight: 44);
             _undoBtn.onClick.AddListener(OnUndo);
 
             // Redo button
-            _redoBtn = AddTopBarButton(topBar, "↪", StyleHelper.DarkBlue, minWidth: 44, minHeight: 36);
+            _redoBtn = AddTopBarButton(topBar, "↪", StyleHelper.DarkBlue, minWidth: 52, minHeight: 44);
             _redoBtn.onClick.AddListener(OnRedo);
 
             AddTopBarSep(topBar);
 
             // Title label
-            AddTopBarLabel(topBar, "✏ MAP EDITOR", 16f, bold: true, minWidth: 140);
+            AddTopBarLabel(topBar, "✏ MAP EDITOR", 18f, bold: true, minWidth: 160);
 
             // Map name input field
             _mapNameField = AddTopBarInputField(topBar);
@@ -269,11 +269,11 @@ namespace BoplMapEditor.UI
             AddTopBarSep(topBar);
 
             // Save button (blue oval)
-            var saveBtn = AddTopBarButton(topBar, "💾 Save", StyleHelper.Blue, minWidth: 90, minHeight: 36);
+            var saveBtn = AddTopBarButton(topBar, "💾 SAVE", StyleHelper.Blue, minWidth: 100, minHeight: 44);
             saveBtn.onClick.AddListener(OnSave);
 
             // Snap button (green, toggleable)
-            _snapBtn = AddTopBarButton(topBar, "⊞", new Color(0.25f, 0.60f, 0.30f, 1f), minWidth: 44, minHeight: 36);
+            _snapBtn = AddTopBarButton(topBar, "⊞ SNAP", new Color(0.25f, 0.60f, 0.30f, 1f), minWidth: 80, minHeight: 44);
             _snapBtn.onClick.AddListener(() => {
                 _ctrl.SnapToGrid = !_ctrl.SnapToGrid;
                 UpdateSnapHighlight(_snapBtn);
@@ -287,7 +287,7 @@ namespace BoplMapEditor.UI
             }
 
             // Close button (red oval)
-            var closeBtn = AddTopBarButton(topBar, "✕", new Color(0.78f, 0.14f, 0.14f, 1f), minWidth: 44, minHeight: 36);
+            var closeBtn = AddTopBarButton(topBar, "✕ EXIT", new Color(0.85f, 0.14f, 0.14f, 1f), minWidth: 80, minHeight: 44);
             closeBtn.onClick.AddListener(Close);
 
             // Dummy tab buttons (API compatibility — never shown)
@@ -323,8 +323,10 @@ namespace BoplMapEditor.UI
             var lblGo = new GameObject("L");
             lblGo.transform.SetParent(go.transform, false);
             var tmp = lblGo.AddComponent<TextMeshProUGUI>();
-            StyleHelper.StyleText(tmp, 13f, bold: true);
+            StyleHelper.StyleText(tmp, 15f, bold: true);
             tmp.text = text;
+            tmp.fontStyle = FontStyles.Bold | FontStyles.UpperCase;
+            tmp.alignment = TextAlignmentOptions.Center;
             tmp.raycastTarget = false;
             var lrt = lblGo.GetComponent<RectTransform>();
             lrt.anchorMin = Vector2.zero;
@@ -417,40 +419,39 @@ namespace BoplMapEditor.UI
             // ── TOOLS section ─────────────────────────────────────────────
             MakeLeftLabel(panel, "TOOLS", cx, bw, -24f, 16f);
 
-            string[] toolNames  = { "✏", "⬛", "✕" };
+            string[] toolNames  = { "SELECT", "PLACE", "DELETE" };
             Color[]  toolColors = {
                 StyleHelper.Blue,
                 StyleHelper.Orange,
-                new Color(0.72f, 0.20f, 0.20f, 1f)
+                new Color(0.85f, 0.20f, 0.20f, 1f)
             };
 
-            float[] toolY = { -52f, -98f, -144f };
+            float[] toolY = { -56f, -106f, -156f };
             for (int i = 0; i < toolNames.Length; i++)
             {
                 int idx = i;
                 var btn = MakeLeftButton(panel, toolNames[i], toolColors[i],
-                    new Vector2(cx, toolY[i]), new Vector2(bw, 40f));
+                    new Vector2(cx, toolY[i]), new Vector2(bw, 44f));
                 btn.onClick.AddListener(() => SetTool(idx));
                 _toolButtons.Add(btn);
             }
 
             // Separator after tools
-            MakeLeftDivider(panel, -172f, bw, cx);
+            MakeLeftDivider(panel, -184f, bw, cx);
 
             // ── BLOCK section ─────────────────────────────────────────────
-            MakeLeftLabel(panel, "BLOCK", cx, bw, -188f, 16f);
+            MakeLeftLabel(panel, "BLOCK", cx, bw, -200f, 14f);
 
-            // Short display labels for block types
-            string[] blockShortNames = { "G", "Sn", "Ic", "Sp", "Ro", "Sl" };
-            float blockStartY = -216f;
-            float blockStep   = 52f;
+            string[] blockShortNames = { "GRASS", "SNOW", "ICE", "SPACE", "ROBOT", "SLIME" };
+            float blockStartY = -228f;
+            float blockStep   = 50f;
             for (int i = 0; i < StyleHelper.PlatformNames.Length; i++)
             {
                 int idx = i;
                 float by = blockStartY - i * blockStep;
                 var btn = MakeLeftButton(panel, blockShortNames[i],
                     StyleHelper.PlatformColors[i],
-                    new Vector2(cx, by), new Vector2(bw, 44f));
+                    new Vector2(cx, by), new Vector2(bw, 42f));
                 btn.onClick.AddListener(() => SetPlacePlatformType(idx));
                 _typeButtons.Add(btn);
             }
@@ -460,20 +461,19 @@ namespace BoplMapEditor.UI
             MakeLeftDivider(panel, afterBlocksY, bw, cx);
 
             // ── THEME section ─────────────────────────────────────────────
-            float themeLabelY = afterBlocksY - 16f;
-            MakeLeftLabel(panel, "THEME", cx, bw, themeLabelY, 16f);
+            float themeLabelY = afterBlocksY - 18f;
+            MakeLeftLabel(panel, "THEME", cx, bw, themeLabelY, 14f);
 
-            float themeStartY = themeLabelY - 32f;
-            float themeStep   = 40f;
+            float themeStartY = themeLabelY - 34f;
+            float themeStep   = 44f;
+            string[] themeShort = { "GRASS", "SNOW", "SPACE" };
             for (int i = 0; i < StyleHelper.ThemeNames.Length; i++)
             {
                 int idx = i;
                 float ty = themeStartY - i * themeStep;
-                // Single-char theme labels
-                string[] themeShort = { "Gr", "Sn", "Sp" };
                 var btn = MakeLeftButton(panel, themeShort[i],
                     StyleHelper.ThemeColors[i],
-                    new Vector2(cx, ty), new Vector2(bw, 32f));
+                    new Vector2(cx, ty), new Vector2(bw, 36f));
                 btn.onClick.AddListener(() => SetTheme(idx));
                 _themeButtons.Add(btn);
             }
@@ -481,21 +481,21 @@ namespace BoplMapEditor.UI
             // ── SCENE BACKGROUND section ──────────────────────────────────
             float sceneDivY = themeStartY - StyleHelper.ThemeNames.Length * themeStep - 8f;
             MakeLeftDivider(panel, sceneDivY, bw, cx);
-            float sceneLabelY = sceneDivY - 16f;
-            MakeLeftLabel(panel, "SCENE", cx, bw, sceneLabelY, 16f);
+            float sceneLabelY = sceneDivY - 18f;
+            MakeLeftLabel(panel, "SCENE", cx, bw, sceneLabelY, 14f);
 
-            string[] sceneLabels = { "🌿", "❄", "🌌" };
+            string[] sceneLabels = { "GRASS", "SNOW", "SPACE" };
             Color[] sceneColors  = {
-                new Color(0.25f, 0.62f, 0.18f, 1f),
-                new Color(0.55f, 0.78f, 0.95f, 1f),
-                new Color(0.10f, 0.10f, 0.32f, 1f),
+                new Color(0.20f, 0.65f, 0.15f, 1f),
+                new Color(0.45f, 0.75f, 0.95f, 1f),
+                new Color(0.15f, 0.10f, 0.45f, 1f),
             };
-            float sceneStartY = sceneLabelY - 32f;
+            float sceneStartY = sceneLabelY - 34f;
             for (int i = 0; i < 3; i++)
             {
                 int idx = i;
                 var btn = MakeLeftButton(panel, sceneLabels[i], sceneColors[i],
-                    new Vector2(cx, sceneStartY - i * 40f), new Vector2(bw, 32f));
+                    new Vector2(cx, sceneStartY - i * 44f), new Vector2(bw, 36f));
                 btn.onClick.AddListener(() => Util.BackgroundSceneLoader.Load(idx));
             }
             var noBgBtn = MakeLeftButton(panel, "✕BG", new Color(0.3f, 0.3f, 0.35f, 1f),
@@ -532,8 +532,10 @@ namespace BoplMapEditor.UI
             var lblGo = new GameObject("L");
             lblGo.transform.SetParent(go.transform, false);
             var tmp = lblGo.AddComponent<TextMeshProUGUI>();
-            StyleHelper.StyleText(tmp, 10f, bold: true);
+            StyleHelper.StyleText(tmp, 12f, bold: true);
             tmp.text = text;
+            tmp.alignment = TextAlignmentOptions.Center;
+            tmp.fontStyle = FontStyles.Bold | FontStyles.UpperCase;
             tmp.raycastTarget = false;
             var lrt = lblGo.GetComponent<RectTransform>();
             lrt.anchorMin = Vector2.zero;
@@ -550,7 +552,7 @@ namespace BoplMapEditor.UI
             var go = new GameObject("LLbl_" + text);
             go.transform.SetParent(parent, false);
             var tmp = go.AddComponent<TextMeshProUGUI>();
-            StyleHelper.StyleText(tmp, 10f, bold: true);
+            StyleHelper.StyleTextAllCaps(tmp, 11f);
             tmp.text  = text;
             tmp.color = StyleHelper.TextMuted;
             tmp.fontStyle = FontStyles.Bold | FontStyles.UpperCase;
