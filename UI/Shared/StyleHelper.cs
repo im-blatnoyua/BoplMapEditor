@@ -34,11 +34,11 @@ namespace BoplMapEditor.UI
             var csh = Object.FindObjectOfType<CharacterSelectHandler>(true);
             if (csh != null)
             {
-                _blue     = GetColorField(csh, "blue")     ?? _blue;
-                _darkBlue = GetColorField(csh, "darkBlue") ?? _darkBlue;
-                _orange   = GetColorField(csh, "orange")   ?? _orange;
+                _blue     = Opaque(GetColorField(csh, "blue")     ?? _blue);
+                _darkBlue = Opaque(GetColorField(csh, "darkBlue") ?? _darkBlue);
+                _orange   = Opaque(GetColorField(csh, "orange")   ?? _orange);
                 _colorsLoaded = true;
-                Plugin.Log.LogInfo("[StyleHelper] Loaded colors from CharacterSelectHandler.");
+                Plugin.Log.LogInfo($"[StyleHelper] Loaded colors from CharacterSelectHandler. blue={_blue} orange={_orange}");
                 return;
             }
 
@@ -46,17 +46,19 @@ namespace BoplMapEditor.UI
             var csho = Object.FindObjectOfType<CharacterSelectHandler_online>(true);
             if (csho != null)
             {
-                _blue     = GetColorField(csho, "blue")     ?? _blue;
-                _darkBlue = GetColorField(csho, "darkBlue") ?? _darkBlue;
-                _orange   = GetColorField(csho, "orange")   ?? _orange;
+                _blue     = Opaque(GetColorField(csho, "blue")     ?? _blue);
+                _darkBlue = Opaque(GetColorField(csho, "darkBlue") ?? _darkBlue);
+                _orange   = Opaque(GetColorField(csho, "orange")   ?? _orange);
                 _colorsLoaded = true;
-                Plugin.Log.LogInfo("[StyleHelper] Loaded colors from CharacterSelectHandler_online.");
+                Plugin.Log.LogInfo($"[StyleHelper] Loaded colors from CharacterSelectHandler_online. blue={_blue} orange={_orange}");
                 return;
             }
 
             Plugin.Log.LogWarning("[StyleHelper] CharacterSelectHandler not found — using fallback colors.");
             _colorsLoaded = true;
         }
+
+        private static Color Opaque(Color c) => new Color(c.r, c.g, c.b, 1f);
 
         private static Color? GetColorField(object obj, string fieldName)
         {
