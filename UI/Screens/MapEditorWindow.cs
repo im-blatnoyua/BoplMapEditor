@@ -252,27 +252,27 @@ namespace BoplMapEditor.UI
 
             // Scene background buttons (top bar, before undo/redo)
             {
-                var sceneGrassBtn = AddTopBarButton(topBar, "🌿", new Color(0.20f, 0.65f, 0.15f, 1f), minWidth: 44, minHeight: 44);
+                var sceneGrassBtn = AddTopBarButton(topBar, "GRASS", new Color(0.20f, 0.65f, 0.15f, 1f), minWidth: 64, minHeight: 44);
                 sceneGrassBtn.onClick.AddListener(() => Util.BackgroundSceneLoader.Load(0));
-                var sceneSnowBtn = AddTopBarButton(topBar, "❄", new Color(0.45f, 0.75f, 0.95f, 1f), minWidth: 44, minHeight: 44);
+                var sceneSnowBtn = AddTopBarButton(topBar, "SNOW", new Color(0.45f, 0.75f, 0.95f, 1f), minWidth: 60, minHeight: 44);
                 sceneSnowBtn.onClick.AddListener(() => Util.BackgroundSceneLoader.Load(1));
-                var sceneSpaceBtn = AddTopBarButton(topBar, "🌌", new Color(0.15f, 0.10f, 0.45f, 1f), minWidth: 44, minHeight: 44);
+                var sceneSpaceBtn = AddTopBarButton(topBar, "SPACE", new Color(0.25f, 0.15f, 0.65f, 1f), minWidth: 64, minHeight: 44);
                 sceneSpaceBtn.onClick.AddListener(() => Util.BackgroundSceneLoader.Load(2));
             }
             AddTopBarSep(topBar);
 
             // Undo button
-            _undoBtn = AddTopBarButton(topBar, "↩", StyleHelper.DarkBlue, minWidth: 52, minHeight: 44);
+            _undoBtn = AddTopBarButton(topBar, "UNDO", StyleHelper.DarkBlue, minWidth: 60, minHeight: 44);
             _undoBtn.onClick.AddListener(OnUndo);
 
             // Redo button
-            _redoBtn = AddTopBarButton(topBar, "↪", StyleHelper.DarkBlue, minWidth: 52, minHeight: 44);
+            _redoBtn = AddTopBarButton(topBar, "REDO", StyleHelper.DarkBlue, minWidth: 60, minHeight: 44);
             _redoBtn.onClick.AddListener(OnRedo);
 
             AddTopBarSep(topBar);
 
             // Title label
-            AddTopBarLabel(topBar, "✏ MAP EDITOR", 18f, bold: true, minWidth: 160);
+            AddTopBarLabel(topBar, "MAP EDITOR", 18f, bold: true, minWidth: 140);
 
             // Map name input field
             _mapNameField = AddTopBarInputField(topBar);
@@ -281,11 +281,11 @@ namespace BoplMapEditor.UI
             AddTopBarSep(topBar);
 
             // Save button (blue oval)
-            var saveBtn = AddTopBarButton(topBar, "💾 SAVE", StyleHelper.Blue, minWidth: 100, minHeight: 44);
+            var saveBtn = AddTopBarButton(topBar, "SAVE", StyleHelper.Blue, minWidth: 80, minHeight: 44);
             saveBtn.onClick.AddListener(OnSave);
 
             // Snap button (green, toggleable)
-            _snapBtn = AddTopBarButton(topBar, "⊞ SNAP", new Color(0.25f, 0.60f, 0.30f, 1f), minWidth: 80, minHeight: 44);
+            _snapBtn = AddTopBarButton(topBar, "SNAP", new Color(0.25f, 0.60f, 0.30f, 1f), minWidth: 72, minHeight: 44);
             _snapBtn.onClick.AddListener(() => {
                 _ctrl.SnapToGrid = !_ctrl.SnapToGrid;
                 UpdateSnapHighlight(_snapBtn);
@@ -299,7 +299,7 @@ namespace BoplMapEditor.UI
             }
 
             // Close button (red oval)
-            var closeBtn = AddTopBarButton(topBar, "✕ EXIT", new Color(0.85f, 0.14f, 0.14f, 1f), minWidth: 80, minHeight: 44);
+            var closeBtn = AddTopBarButton(topBar, "EXIT", new Color(0.85f, 0.14f, 0.14f, 1f), minWidth: 72, minHeight: 44);
             closeBtn.onClick.AddListener(Close);
 
             // Dummy tab buttons (API compatibility — never shown)
