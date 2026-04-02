@@ -9,7 +9,11 @@ using UnityEngine.UI;
 namespace BoplMapEditor.UI
 {
     // Full-screen map editor window built with UGUI.
-    // Toolbar at top, sidebar on right (absolute-positioned, no VLG), transparent canvas viewport.
+    // Super Mario Maker 2-inspired layout:
+    //   - Top bar (52px): undo/redo | title | map name field | save | close
+    //   - Left panel (88px): tool + block type + theme buttons
+    //   - Canvas (center): solid dark background + grid + platform widgets
+    //   - Right sidebar (200px): platform properties (absolute positioning)
     public class MapEditorWindow : MonoBehaviour
     {
         private MapEditorController     _ctrl        = null!;
@@ -33,21 +37,22 @@ namespace BoplMapEditor.UI
         private Button _redoBtn = null!;
         private Button _snapBtn = null!;
 
-        // Tab fields — kept for API compatibility but wired to dummy objects
-        private GameObject      _platformsTab   = null!;
-        private GameObject      _environmentTab = null!;
-        private EnvironmentPanel _envPanel      = null!;
-        private MovementPanel    _movPanel      = null!;
-        private Button           _tabPlatforms  = null!;
+        // Tab fields — kept for API compatibility, wired to dummy objects
+        private GameObject       _platformsTab   = null!;
+        private GameObject       _environmentTab = null!;
+        private EnvironmentPanel _envPanel       = null!;
+        private MovementPanel    _movPanel       = null!;
+        private Button           _tabPlatforms   = null!;
         private Button           _tabEnvironment = null!;
 
         // In-editor load browser (modal panel)
-        private GameObject      _browserPanel   = null!;
-        private RectTransform   _browserContent = null!;
+        private GameObject    _browserPanel   = null!;
+        private RectTransform _browserContent = null!;
 
-        // Layout constants (at 1280×720 reference)
-        private const float TOOLBAR_H  = 54f;
-        private const float SIDEBAR_W  = 220f;
+        // Layout constants
+        private const float TOP_BAR_H    = 52f;
+        private const float LEFT_PANEL_W = 88f;
+        private const float RIGHT_PANEL_W = 200f;
 
         // ── Factory ───────────────────────────────────────────────────────
 
@@ -97,72 +102,107 @@ namespace BoplMapEditor.UI
         {
             var root = _canvas.GetComponent<RectTransform>();
 
-            // Fully transparent root background — game shows through
-            var bg = UIBuilder.FlatPanel(root, "Background", Color.clear,
+            // Solid dark background — game does NOT show through (SMM2 style: new page feel)
+            var bg = UIBuilder.FlatPanel(root, "Background",
+                new Color(0.08f, 0.11f, 0.18f, 1.0f),
                 Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
 
-            // ── Toolbar (top strip) ───────────────────────────────────────
-            var toolbar = UIBuilder.FlatPanel(bg, "Toolbar",
-                new Color(0.05f, 0.08f, 0.15f, 0.92f),
+            // ── Top bar (full width, 52px) ─────────────────────────────────
+            var topBar = UIBuilder.FlatPanel(bg, "TopBar",
+                new Color(0.05f, 0.07f, 0.13f, 0.97f),
                 new Vector2(0f, 1f), Vector2.one,
-                new Vector2(0f, -TOOLBAR_H), Vector2.zero);
-            BuildToolbar(toolbar);
+                new Vector2(0f, -TOP_BAR_H), Vector2.zero);
+            BuildTopBar(topBar);
 
-            // Hairline border below toolbar
-            var tbBorder = new GameObject("ToolbarBorder");
-            tbBorder.transform.SetParent(bg, false);
-            var tbbImg = tbBorder.AddComponent<Image>();
-            tbbImg.color = StyleHelper.DarkBorder;
-            var tbbRt = tbBorder.GetComponent<RectTransform>();
-            tbbRt.anchorMin = new Vector2(0f, 1f);
-            tbbRt.anchorMax = Vector2.one;
-            tbbRt.offsetMin = new Vector2(0f, -TOOLBAR_H - 1f);
-            tbbRt.offsetMax = new Vector2(0f, -TOOLBAR_H);
+            // Thin bottom-border on top bar
+            {
+                var border = new GameObject("TopBarBorder");
+                border.transform.SetParent(bg, false);
+                var img = border.AddComponent<Image>();
+                img.color = StyleHelper.DarkBorder;
+                var rt = border.GetComponent<RectTransform>();
+                rt.anchorMin = new Vector2(0f, 1f);
+                rt.anchorMax = Vector2.one;
+                rt.offsetMin = new Vector2(0f, -TOP_BAR_H - 1f);
+                rt.offsetMax = new Vector2(0f, -TOP_BAR_H);
+            }
 
-            // ── Main area (below toolbar) ─────────────────────────────────
+            // ── Main area (below top bar) ──────────────────────────────────
             var main = new GameObject("Main").AddComponent<RectTransform>();
             main.SetParent(bg, false);
             main.anchorMin = Vector2.zero;
             main.anchorMax = Vector2.one;
             main.offsetMin = new Vector2(0f, 0f);
-            main.offsetMax = new Vector2(0f, -TOOLBAR_H - 1f);
+            main.offsetMax = new Vector2(0f, -TOP_BAR_H - 1f);
 
-            // ── Right sidebar (absolute-positioned, dark background) ──────
+            // ── Left panel (88px wide, dark navy) ──────────────────────────
+            var leftPanelGo = new GameObject("LeftPanel");
+            leftPanelGo.transform.SetParent(main, false);
+            var leftPanelImg = leftPanelGo.AddComponent<Image>();
+            leftPanelImg.color = new Color(0.05f, 0.07f, 0.13f, 0.97f);
+            var leftPanelRt = leftPanelGo.GetComponent<RectTransform>();
+            leftPanelRt.anchorMin = new Vector2(0f, 0f);
+            leftPanelRt.anchorMax = new Vector2(0f, 1f);
+            leftPanelRt.offsetMin = new Vector2(0f, 0f);
+            leftPanelRt.offsetMax = new Vector2(LEFT_PANEL_W, 0f);
+            BuildLeftPanel(leftPanelRt);
+
+            // Thin right-border on left panel
+            {
+                var border = new GameObject("LeftPanelBorder");
+                border.transform.SetParent(main, false);
+                var img = border.AddComponent<Image>();
+                img.color = StyleHelper.DarkBorder;
+                var rt = border.GetComponent<RectTransform>();
+                rt.anchorMin = new Vector2(0f, 0f);
+                rt.anchorMax = new Vector2(0f, 1f);
+                rt.offsetMin = new Vector2(LEFT_PANEL_W, 0f);
+                rt.offsetMax = new Vector2(LEFT_PANEL_W + 1f, 0f);
+            }
+
+            // ── Right sidebar (200px wide, dark bg) ────────────────────────
             var sidebarGo = new GameObject("Sidebar");
             sidebarGo.transform.SetParent(main, false);
             var sidebarImg = sidebarGo.AddComponent<Image>();
-            sidebarImg.color = new Color(0.06f, 0.10f, 0.18f, 0.93f);
+            sidebarImg.color = new Color(0.06f, 0.09f, 0.16f, 0.97f);
             var sidebarRt = sidebarGo.GetComponent<RectTransform>();
             sidebarRt.anchorMin = new Vector2(1f, 0f);
             sidebarRt.anchorMax = Vector2.one;
-            sidebarRt.offsetMin = new Vector2(-SIDEBAR_W, 0f);
+            sidebarRt.offsetMin = new Vector2(-RIGHT_PANEL_W, 0f);
             sidebarRt.offsetMax = Vector2.zero;
             BuildSidebar(sidebarRt);
 
-            // Sidebar left-edge border
-            var sbBorder = new GameObject("SidebarBorder");
-            sbBorder.transform.SetParent(main, false);
-            var sbBorderImg = sbBorder.AddComponent<Image>();
-            sbBorderImg.color = StyleHelper.DarkBorder;
-            var sbBorderRt = sbBorder.GetComponent<RectTransform>();
-            sbBorderRt.anchorMin = new Vector2(1f, 0f);
-            sbBorderRt.anchorMax = Vector2.one;
-            sbBorderRt.offsetMin = new Vector2(-SIDEBAR_W - 1f, 0f);
-            sbBorderRt.offsetMax = new Vector2(-SIDEBAR_W, 0f);
+            // Thin left-border on sidebar
+            {
+                var border = new GameObject("SidebarBorder");
+                border.transform.SetParent(main, false);
+                var img = border.AddComponent<Image>();
+                img.color = StyleHelper.DarkBorder;
+                var rt = border.GetComponent<RectTransform>();
+                rt.anchorMin = new Vector2(1f, 0f);
+                rt.anchorMax = Vector2.one;
+                rt.offsetMin = new Vector2(-RIGHT_PANEL_W - 1f, 0f);
+                rt.offsetMax = new Vector2(-RIGHT_PANEL_W, 0f);
+            }
 
-            // ── Canvas viewport (transparent, left of sidebar) ─────────────
+            // ── Canvas viewport (center, solid dark bg, grid) ──────────────
             var viewportGo = new GameObject("Viewport");
             viewportGo.transform.SetParent(main, false);
             var viewportImg = viewportGo.AddComponent<Image>();
-            viewportImg.color = Color.clear;
+            // Solid opaque dark — NOT transparent
+            viewportImg.color = new Color(0.08f, 0.11f, 0.18f, 1.0f);
             viewportImg.raycastTarget = true;
             var viewportRt = viewportGo.GetComponent<RectTransform>();
             viewportRt.anchorMin = Vector2.zero;
             viewportRt.anchorMax = Vector2.one;
-            viewportRt.offsetMin = Vector2.zero;
-            viewportRt.offsetMax = new Vector2(-SIDEBAR_W - 1f, 0f);
+            viewportRt.offsetMin = new Vector2(LEFT_PANEL_W + 1f, 0f);
+            viewportRt.offsetMax = new Vector2(-RIGHT_PANEL_W - 1f, 0f);
 
-            // Input receiver — canvas events land here
+            // Grid renderer (sits as a component on viewport parent, draws into viewport)
+            var gridRenderer = viewportGo.AddComponent<GridRenderer>();
+            gridRenderer.Init(viewportRt);
+
+            // Input receiver — canvas events land on this (fills viewport)
             var canvasCtrlGo = new GameObject("CanvasController");
             canvasCtrlGo.transform.SetParent(viewportGo.transform, false);
             var ccRt = canvasCtrlGo.AddComponent<RectTransform>();
@@ -174,7 +214,7 @@ namespace BoplMapEditor.UI
             ccImg.color = Color.clear;
             ccImg.raycastTarget = true;
 
-            // Content panel (platform widgets parented here)
+            // Content panel — platform widgets parented here
             var contentGo = new GameObject("Content");
             contentGo.transform.SetParent(canvasCtrlGo.transform, false);
             var contentRt = contentGo.AddComponent<RectTransform>();
@@ -184,35 +224,6 @@ namespace BoplMapEditor.UI
 
             _canvasCtrl = canvasCtrlGo.AddComponent<EditorCanvasController>();
             _canvasCtrl.Init(_ctrl, ccRt, contentRt);
-
-            // ── Close button — absolute, top-right of root canvas ─────────
-            var closeBtnGo = new GameObject("CloseBtn");
-            closeBtnGo.transform.SetParent(root, false);
-            var closeBtnImg = closeBtnGo.AddComponent<Image>();
-            closeBtnImg.color = new Color(0.78f, 0.14f, 0.14f, 1f);
-            closeBtnImg.sprite = StyleHelper.GetButtonSprite();
-            closeBtnImg.type = Image.Type.Sliced;
-            var closeBtnBtn = closeBtnGo.AddComponent<Button>();
-            StyleHelper.StyleButton(closeBtnBtn, new Color(0.78f, 0.14f, 0.14f, 1f));
-            StyleHelper.AddPressColorSwap(closeBtnBtn);
-            var closeBtnRt = closeBtnGo.GetComponent<RectTransform>();
-            closeBtnRt.anchorMin = new Vector2(1f, 1f);
-            closeBtnRt.anchorMax = new Vector2(1f, 1f);
-            closeBtnRt.pivot     = new Vector2(1f, 1f);
-            closeBtnRt.sizeDelta = new Vector2(48f, 48f);
-            closeBtnRt.anchoredPosition = new Vector2(-6f, -4f);
-            var closeLblGo = new GameObject("Label");
-            closeLblGo.transform.SetParent(closeBtnGo.transform, false);
-            var closeTmp = closeLblGo.AddComponent<TextMeshProUGUI>();
-            StyleHelper.StyleText(closeTmp, 18f, bold: true);
-            closeTmp.text = "✕";
-            closeTmp.raycastTarget = false;
-            var closeLblRt = closeLblGo.GetComponent<RectTransform>();
-            closeLblRt.anchorMin = Vector2.zero;
-            closeLblRt.anchorMax = Vector2.one;
-            closeLblRt.offsetMin = Vector2.zero;
-            closeLblRt.offsetMax = Vector2.zero;
-            closeBtnBtn.onClick.AddListener(Close);
 
             // ── Dummy objects for tab fields (API compatibility) ───────────
             _platformsTab = new GameObject("Tab_Platforms_Dummy");
@@ -224,114 +235,93 @@ namespace BoplMapEditor.UI
             BuildBrowserPanel(bg);
         }
 
-        // ── Toolbar ───────────────────────────────────────────────────────
+        // ── Top Bar ───────────────────────────────────────────────────────
 
-        private void BuildToolbar(RectTransform toolbar)
+        private void BuildTopBar(RectTransform topBar)
         {
-            var layout = toolbar.gameObject.AddComponent<HorizontalLayoutGroup>();
-            layout.padding = new RectOffset(12, 62, 7, 7);  // right pad leaves room for close btn
-            layout.spacing = 7;
-            layout.childAlignment      = TextAnchor.MiddleLeft;
+            var layout = topBar.gameObject.AddComponent<HorizontalLayoutGroup>();
+            layout.padding = new RectOffset(12, 12, 8, 8);
+            layout.spacing = 6;
+            layout.childAlignment       = TextAnchor.MiddleLeft;
             layout.childForceExpandHeight = true;
             layout.childForceExpandWidth  = false;
 
-            // Title — bold, game-style all-caps
-            AddToolbarLabel(toolbar, "✏ MAP EDITOR", 16f, bold: true, minWidth: 120);
-
-            AddToolbarSep(toolbar);
-
-            // ── Tool mode buttons ─────────────────────────────────────────
-            string[] toolNames  = { "Select", "Place", "Delete" };
-            Color[]  toolColors = {
-                StyleHelper.Blue,
-                StyleHelper.Orange,
-                new Color(0.72f, 0.20f, 0.20f, 1f)
-            };
-            for (int i = 0; i < toolNames.Length; i++)
-            {
-                int idx = i;
-                var btn = AddToolbarButton(toolbar, toolNames[i], toolColors[i], minWidth: 60);
-                btn.onClick.AddListener(() => SetTool(idx));
-                _toolButtons.Add(btn);
-            }
-
-            AddToolbarSep(toolbar);
-
-            // ── Block type buttons ────────────────────────────────────────
-            for (int i = 0; i < StyleHelper.PlatformNames.Length; i++)
-            {
-                int idx = i;
-                var btn = AddToolbarButton(toolbar, StyleHelper.PlatformNames[i],
-                    StyleHelper.PlatformColors[i], minWidth: 48);
-                btn.onClick.AddListener(() => SetPlacePlatformType(idx));
-                _typeButtons.Add(btn);
-            }
-
-            AddToolbarSep(toolbar);
-
-            // ── Level theme buttons ───────────────────────────────────────
-            for (int i = 0; i < StyleHelper.ThemeNames.Length; i++)
-            {
-                int idx = i;
-                var btn = AddToolbarButton(toolbar, StyleHelper.ThemeNames[i],
-                    StyleHelper.ThemeColors[i], minWidth: 48);
-                btn.onClick.AddListener(() => SetTheme(idx));
-                _themeButtons.Add(btn);
-            }
-
-            AddToolbarSep(toolbar);
-
-            // ── Undo / Redo buttons ────────────────────────────────────────
-            _undoBtn = AddToolbarButton(toolbar, "↩ Undo", StyleHelper.DarkBlue, minWidth: 56);
+            // Undo button
+            _undoBtn = AddTopBarButton(topBar, "↩", StyleHelper.DarkBlue, minWidth: 44, minHeight: 36);
             _undoBtn.onClick.AddListener(OnUndo);
-            _redoBtn = AddToolbarButton(toolbar, "↪ Redo", StyleHelper.DarkBlue, minWidth: 56);
+
+            // Redo button
+            _redoBtn = AddTopBarButton(topBar, "↪", StyleHelper.DarkBlue, minWidth: 44, minHeight: 36);
             _redoBtn.onClick.AddListener(OnRedo);
 
-            AddToolbarSep(toolbar);
+            AddTopBarSep(topBar);
 
-            // ── Snap to grid toggle ────────────────────────────────────────
-            _snapBtn = AddToolbarButton(toolbar, "⊞ SNAP", new Color(0.25f, 0.60f, 0.30f, 1f), minWidth: 64);
+            // Title label
+            AddTopBarLabel(topBar, "✏ MAP EDITOR", 16f, bold: true, minWidth: 140);
+
+            // Map name input field
+            _mapNameField = AddTopBarInputField(topBar);
+            _mapNameField.onEndEdit.AddListener(n => _ctrl.CurrentMap.Name = n);
+
+            AddTopBarSep(topBar);
+
+            // Save button (blue oval)
+            var saveBtn = AddTopBarButton(topBar, "💾 Save", StyleHelper.Blue, minWidth: 90, minHeight: 36);
+            saveBtn.onClick.AddListener(OnSave);
+
+            // Snap button (green, toggleable)
+            _snapBtn = AddTopBarButton(topBar, "⊞", new Color(0.25f, 0.60f, 0.30f, 1f), minWidth: 44, minHeight: 36);
             _snapBtn.onClick.AddListener(() => {
                 _ctrl.SnapToGrid = !_ctrl.SnapToGrid;
                 UpdateSnapHighlight(_snapBtn);
             });
 
-            // Dummy tab buttons (API compatibility — never shown in toolbar)
+            // Flexible spacer
+            {
+                var spacer = new GameObject("Spacer");
+                spacer.transform.SetParent(topBar, false);
+                spacer.AddComponent<LayoutElement>().flexibleWidth = 1f;
+            }
+
+            // Close button (red oval)
+            var closeBtn = AddTopBarButton(topBar, "✕", new Color(0.78f, 0.14f, 0.14f, 1f), minWidth: 44, minHeight: 36);
+            closeBtn.onClick.AddListener(Close);
+
+            // Dummy tab buttons (API compatibility — never shown)
             var dummyGo = new GameObject("TabBtns_Dummy");
-            dummyGo.transform.SetParent(toolbar, false);
+            dummyGo.transform.SetParent(topBar, false);
             dummyGo.AddComponent<LayoutElement>().minWidth = 0;
             _tabPlatforms   = dummyGo.AddComponent<Button>();
             _tabEnvironment = dummyGo.AddComponent<Button>();
 
-            UpdateToolHighlights();
             UpdateSnapHighlight(_snapBtn);
         }
 
-        private Button AddToolbarButton(RectTransform parent, string text, Color color,
-            float minWidth = 60)
+        private Button AddTopBarButton(RectTransform parent, string text, Color color,
+            float minWidth = 60, float minHeight = 36)
         {
             var go = new GameObject("TBtn_" + text);
             go.transform.SetParent(parent, false);
 
             var img   = go.AddComponent<Image>();
-            img.color = color;
+            img.color  = color;
             img.sprite = StyleHelper.GetButtonSprite();
-            img.type  = Image.Type.Sliced;
+            img.type   = Image.Type.Sliced;
 
             var btn = go.AddComponent<Button>();
             StyleHelper.StyleButton(btn, color);
             StyleHelper.AddPressColorSwap(btn);
 
             var le = go.AddComponent<LayoutElement>();
-            le.minWidth   = minWidth;
+            le.minWidth    = minWidth;
+            le.minHeight   = minHeight;
             le.flexibleWidth = 0;
 
             var lblGo = new GameObject("L");
             lblGo.transform.SetParent(go.transform, false);
             var tmp = lblGo.AddComponent<TextMeshProUGUI>();
-            StyleHelper.StyleText(tmp, 12f, bold: true);
-            tmp.text      = text;
-            tmp.fontStyle = FontStyles.Bold | FontStyles.UpperCase;
+            StyleHelper.StyleText(tmp, 13f, bold: true);
+            tmp.text = text;
             tmp.raycastTarget = false;
             var lrt = lblGo.GetComponent<RectTransform>();
             lrt.anchorMin = Vector2.zero;
@@ -342,8 +332,53 @@ namespace BoplMapEditor.UI
             return btn;
         }
 
-        private TextMeshProUGUI AddToolbarLabel(RectTransform parent, string text,
-            float fontSize = 13f, bool bold = false, float minWidth = 60)
+        private TMP_InputField AddTopBarInputField(RectTransform parent)
+        {
+            var go = new GameObject("MapNameInput");
+            go.transform.SetParent(parent, false);
+
+            var bg = go.AddComponent<Image>();
+            bg.color  = StyleHelper.DarkElevated;
+            bg.sprite = StyleHelper.MakeRoundedSprite();
+            bg.type   = Image.Type.Sliced;
+
+            var le = go.AddComponent<LayoutElement>();
+            le.minWidth   = 120f;
+            le.minHeight  = 36f;
+            le.flexibleWidth = 1f;
+
+            var field = go.AddComponent<TMP_InputField>();
+
+            var phGo = new GameObject("Placeholder");
+            phGo.transform.SetParent(go.transform, false);
+            var phTmp = phGo.AddComponent<TextMeshProUGUI>();
+            StyleHelper.StyleText(phTmp, 12f);
+            phTmp.text  = "Map name...";
+            phTmp.color = StyleHelper.TextMuted;
+            phTmp.alignment = TextAlignmentOptions.Left;
+            var phRt = phGo.GetComponent<RectTransform>();
+            phRt.anchorMin = Vector2.zero; phRt.anchorMax = Vector2.one;
+            phRt.offsetMin = new Vector2(8, 2); phRt.offsetMax = new Vector2(-8, -2);
+
+            var textGo = new GameObject("Text");
+            textGo.transform.SetParent(go.transform, false);
+            var textTmp = textGo.AddComponent<TextMeshProUGUI>();
+            StyleHelper.StyleText(textTmp, 12f);
+            textTmp.color = StyleHelper.TextPrimary;
+            textTmp.alignment = TextAlignmentOptions.Left;
+            var textRt = textGo.GetComponent<RectTransform>();
+            textRt.anchorMin = Vector2.zero; textRt.anchorMax = Vector2.one;
+            textRt.offsetMin = new Vector2(8, 2); textRt.offsetMax = new Vector2(-8, -2);
+
+            field.textViewport  = textRt;
+            field.textComponent = textTmp;
+            field.placeholder   = phTmp;
+            field.caretColor    = StyleHelper.White;
+            return field;
+        }
+
+        private TextMeshProUGUI AddTopBarLabel(RectTransform parent, string text,
+            float fontSize = 14f, bool bold = false, float minWidth = 60)
         {
             var go = new GameObject("TLbl_" + text);
             go.transform.SetParent(parent, false);
@@ -357,107 +392,228 @@ namespace BoplMapEditor.UI
             return tmp;
         }
 
-        private void AddToolbarSep(RectTransform parent)
+        private void AddTopBarSep(RectTransform parent)
         {
             var go = new GameObject("Sep");
             go.transform.SetParent(parent, false);
             var img = go.AddComponent<Image>();
             img.color = StyleHelper.DarkBorder;
             var le = go.AddComponent<LayoutElement>();
-            le.minWidth  = 1;
+            le.minWidth  = 2;
             le.minHeight = 32;
             le.flexibleHeight = 0;
+        }
+
+        // ── Left Panel (absolute positioning) ─────────────────────────────
+
+        private void BuildLeftPanel(RectTransform panel)
+        {
+            float cx = 8f;    // x position of buttons from left edge
+            float bw = 72f;   // button width
+
+            // ── TOOLS section ─────────────────────────────────────────────
+            MakeLeftLabel(panel, "TOOLS", cx, bw, -24f, 16f);
+
+            string[] toolNames  = { "✏", "⬛", "✕" };
+            Color[]  toolColors = {
+                StyleHelper.Blue,
+                StyleHelper.Orange,
+                new Color(0.72f, 0.20f, 0.20f, 1f)
+            };
+
+            float[] toolY = { -52f, -98f, -144f };
+            for (int i = 0; i < toolNames.Length; i++)
+            {
+                int idx = i;
+                var btn = MakeLeftButton(panel, toolNames[i], toolColors[i],
+                    new Vector2(cx, toolY[i]), new Vector2(bw, 40f));
+                btn.onClick.AddListener(() => SetTool(idx));
+                _toolButtons.Add(btn);
+            }
+
+            // Separator after tools
+            MakeLeftDivider(panel, -172f, bw, cx);
+
+            // ── BLOCK section ─────────────────────────────────────────────
+            MakeLeftLabel(panel, "BLOCK", cx, bw, -188f, 16f);
+
+            // Short display labels for block types
+            string[] blockShortNames = { "G", "Sn", "Ic", "Sp", "Ro", "Sl" };
+            float blockStartY = -216f;
+            float blockStep   = 52f;
+            for (int i = 0; i < StyleHelper.PlatformNames.Length; i++)
+            {
+                int idx = i;
+                float by = blockStartY - i * blockStep;
+                var btn = MakeLeftButton(panel, blockShortNames[i],
+                    StyleHelper.PlatformColors[i],
+                    new Vector2(cx, by), new Vector2(bw, 44f));
+                btn.onClick.AddListener(() => SetPlacePlatformType(idx));
+                _typeButtons.Add(btn);
+            }
+
+            // Separator after blocks
+            float afterBlocksY = blockStartY - StyleHelper.PlatformNames.Length * blockStep - 8f;
+            MakeLeftDivider(panel, afterBlocksY, bw, cx);
+
+            // ── THEME section ─────────────────────────────────────────────
+            float themeLabelY = afterBlocksY - 16f;
+            MakeLeftLabel(panel, "THEME", cx, bw, themeLabelY, 16f);
+
+            float themeStartY = themeLabelY - 32f;
+            float themeStep   = 40f;
+            for (int i = 0; i < StyleHelper.ThemeNames.Length; i++)
+            {
+                int idx = i;
+                float ty = themeStartY - i * themeStep;
+                // Single-char theme labels
+                string[] themeShort = { "Gr", "Sn", "Sp" };
+                var btn = MakeLeftButton(panel, themeShort[i],
+                    StyleHelper.ThemeColors[i],
+                    new Vector2(cx, ty), new Vector2(bw, 32f));
+                btn.onClick.AddListener(() => SetTheme(idx));
+                _themeButtons.Add(btn);
+            }
+
+            UpdateToolHighlights();
+            UpdateTypeHighlights();
+            UpdateThemeHighlights();
+        }
+
+        private Button MakeLeftButton(RectTransform parent, string text, Color color,
+            Vector2 pos, Vector2 size)
+        {
+            var go = new GameObject("LBtn_" + text);
+            go.transform.SetParent(parent, false);
+
+            var img   = go.AddComponent<Image>();
+            img.color  = color;
+            img.sprite = StyleHelper.GetButtonSprite();
+            img.type   = Image.Type.Sliced;
+
+            var btn = go.AddComponent<Button>();
+            StyleHelper.StyleButton(btn, color);
+            StyleHelper.AddPressColorSwap(btn);
+
+            var rt = go.GetComponent<RectTransform>();
+            rt.anchorMin = new Vector2(0f, 1f);
+            rt.anchorMax = new Vector2(0f, 1f);
+            rt.pivot     = new Vector2(0f, 1f);
+            rt.sizeDelta = size;
+            rt.anchoredPosition = pos;
+
+            var lblGo = new GameObject("L");
+            lblGo.transform.SetParent(go.transform, false);
+            var tmp = lblGo.AddComponent<TextMeshProUGUI>();
+            StyleHelper.StyleText(tmp, 10f, bold: true);
+            tmp.text = text;
+            tmp.raycastTarget = false;
+            var lrt = lblGo.GetComponent<RectTransform>();
+            lrt.anchorMin = Vector2.zero;
+            lrt.anchorMax = Vector2.one;
+            lrt.offsetMin = new Vector2(2, 1);
+            lrt.offsetMax = new Vector2(-2, -1);
+
+            return btn;
+        }
+
+        private TextMeshProUGUI MakeLeftLabel(RectTransform parent, string text,
+            float x, float w, float y, float h)
+        {
+            var go = new GameObject("LLbl_" + text);
+            go.transform.SetParent(parent, false);
+            var tmp = go.AddComponent<TextMeshProUGUI>();
+            StyleHelper.StyleText(tmp, 10f, bold: true);
+            tmp.text  = text;
+            tmp.color = StyleHelper.TextMuted;
+            tmp.fontStyle = FontStyles.Bold | FontStyles.UpperCase;
+            tmp.alignment = TextAlignmentOptions.Center;
+            var rt = go.GetComponent<RectTransform>();
+            rt.anchorMin = new Vector2(0f, 1f);
+            rt.anchorMax = new Vector2(0f, 1f);
+            rt.pivot     = new Vector2(0f, 1f);
+            rt.sizeDelta = new Vector2(w, h);
+            rt.anchoredPosition = new Vector2(x, y);
+            return tmp;
+        }
+
+        private void MakeLeftDivider(RectTransform parent, float y, float w, float x)
+        {
+            var go = new GameObject("LDiv");
+            go.transform.SetParent(parent, false);
+            var img = go.AddComponent<Image>();
+            img.color = StyleHelper.DarkBorder;
+            var rt = go.GetComponent<RectTransform>();
+            rt.anchorMin = new Vector2(0f, 1f);
+            rt.anchorMax = new Vector2(0f, 1f);
+            rt.pivot     = new Vector2(0f, 1f);
+            rt.sizeDelta = new Vector2(w, 1f);
+            rt.anchoredPosition = new Vector2(x, y);
         }
 
         // ── Sidebar (absolute positioning, no VerticalLayoutGroup) ────────
 
         private void BuildSidebar(RectTransform sidebar)
         {
-            float padX = 16f;
-            float innerW = SIDEBAR_W - padX * 2f;
-            float x0 = padX;
+            float padX  = 8f;
+            float innerW = RIGHT_PANEL_W - padX * 2f;
+            float x0    = padX;
 
-            // "MAP NAME" section label — all-caps muted game style
-            {
-                var lbl = MakeAbsSideLabel(sidebar, "MAP NAME", x0, innerW, -20f, 16f, bold: true, muted: true);
-                StyleHelper.StyleTextAllCaps(lbl, 12f);
-            }
-
-            // Map name input field
-            _mapNameField = MakeAbsInputField(sidebar, "Map name...", x0, innerW, -52f, 32f);
-            _mapNameField.onEndEdit.AddListener(n => _ctrl.CurrentMap.Name = n);
-
-            // Save / Load row
-            float btnW = (innerW - 8f) * 0.5f;
-            var saveBtn = MakeAbsButton(sidebar, "Save", StyleHelper.Blue,
-                new Vector2(x0, -92f), new Vector2(btnW, 32f));
-            saveBtn.onClick.AddListener(OnSave);
-            var loadBtn = MakeAbsButton(sidebar, "Load", StyleHelper.DarkBlue,
-                new Vector2(x0 + btnW + 8f, -92f), new Vector2(btnW, 32f));
-            loadBtn.onClick.AddListener(OnLoad);
-
-            // Push to lobby (full width)
-            var lobbyBtn = MakeAbsButton(sidebar, "▶  Push to Lobby", StyleHelper.Orange,
-                new Vector2(x0, -136f), new Vector2(innerW, 32f));
-            lobbyBtn.onClick.AddListener(OnPushToLobby);
+            // Platform count label
+            _platformCountLabel = MakeAbsSideLabel(sidebar, "PLATFORMS: 0",
+                x0, innerW, -16f, 18f, bold: true);
+            _platformCountLabel.color = StyleHelper.TextPrimary;
 
             // Divider
-            MakeAbsDivider(sidebar, -176f, innerW, x0);
+            MakeAbsDivider(sidebar, -40f, innerW, x0);
 
-            // PLATFORMS: N label — colored dot prefix, muted
-            _platformCountLabel = MakeAbsSideLabel(sidebar, "● Platforms: 0", x0, innerW, -192f, 16f);
-            _platformCountLabel.color = StyleHelper.TextSecondary;
-            _platformCountLabel.fontSize = 12f;
-
-            // Divider
-            MakeAbsDivider(sidebar, -216f, innerW, x0);
-
-            // SELECTED section label — all-caps muted
-            {
-                var lbl = MakeAbsSideLabel(sidebar, "● SELECTED", x0, innerW, -232f, 16f, bold: true, muted: true);
-                StyleHelper.StyleTextAllCaps(lbl, 11f);
-            }
+            // "SELECTED" section label
+            MakeAbsSideLabel(sidebar, "SELECTED", x0, innerW, -56f, 16f, bold: true, muted: true);
 
             // Selected info label
-            _selectedInfoLabel = MakeAbsSideLabel(sidebar, "None selected", x0, innerW, -252f, 18f);
+            _selectedInfoLabel = MakeAbsSideLabel(sidebar, "None selected",
+                x0, innerW, -74f, 18f);
             _selectedInfoLabel.color = StyleHelper.TextMuted;
-            _selectedInfoLabel.fontSize = 12f;
+            _selectedInfoLabel.fontSize = 13f;
 
-            // X/Y row — X=red-ish, Y=green-ish axis colors
-            float lblW = 20f;
+            // X / Y row (y=-100)
+            float lblW   = 20f;
             float inputW = (innerW - lblW * 2f - 8f) * 0.5f;
             {
-                var xl = MakeAbsSideLabel(sidebar, "X", x0, lblW, -278f, 24f);
-                xl.color = new Color(0.95f, 0.45f, 0.45f, 1f);
+                var xl = MakeAbsSideLabel(sidebar, "X", x0, lblW, -100f, 28f);
+                xl.color = new Color(0.9f, 0.4f, 0.4f, 1f);
                 xl.fontStyle = FontStyles.Bold;
             }
-            _propX = MakeAbsInputField(sidebar, "0.00", x0 + lblW + 2f, inputW, -278f, 24f);
+            _propX = MakeAbsInputField(sidebar, "0.00", x0 + lblW + 2f, inputW, -100f, 28f);
             {
-                var yl = MakeAbsSideLabel(sidebar, "Y", x0 + lblW + 2f + inputW + 4f, lblW, -278f, 24f);
-                yl.color = new Color(0.45f, 0.90f, 0.55f, 1f);
+                var yl = MakeAbsSideLabel(sidebar, "Y", x0 + lblW + 2f + inputW + 4f, lblW, -100f, 28f);
+                yl.color = new Color(0.4f, 0.9f, 0.5f, 1f);
                 yl.fontStyle = FontStyles.Bold;
             }
-            _propY = MakeAbsInputField(sidebar, "0.00", x0 + lblW * 2f + 2f + inputW + 4f + 2f, inputW, -278f, 24f);
+            _propY = MakeAbsInputField(sidebar, "0.00",
+                x0 + lblW * 2f + 2f + inputW + 6f, inputW, -100f, 28f);
 
-            // W/H row — W/H=blue-ish
+            // W / H row (y=-136)
             {
-                var wl = MakeAbsSideLabel(sidebar, "W", x0, lblW, -310f, 24f);
+                var wl = MakeAbsSideLabel(sidebar, "W", x0, lblW, -136f, 28f);
                 wl.color = new Color(0.45f, 0.70f, 1.00f, 1f);
                 wl.fontStyle = FontStyles.Bold;
             }
-            _propHW = MakeAbsInputField(sidebar, "8.00", x0 + lblW + 2f, inputW, -310f, 24f);
+            _propHW = MakeAbsInputField(sidebar, "8.00", x0 + lblW + 2f, inputW, -136f, 28f);
             {
-                var hl = MakeAbsSideLabel(sidebar, "H", x0 + lblW + 2f + inputW + 4f, lblW, -310f, 24f);
+                var hl = MakeAbsSideLabel(sidebar, "H", x0 + lblW + 2f + inputW + 4f, lblW, -136f, 28f);
                 hl.color = new Color(0.45f, 0.70f, 1.00f, 1f);
                 hl.fontStyle = FontStyles.Bold;
             }
-            _propHH = MakeAbsInputField(sidebar, "1.50", x0 + lblW * 2f + 2f + inputW + 4f + 2f, inputW, -310f, 24f);
+            _propHH = MakeAbsInputField(sidebar, "1.50",
+                x0 + lblW * 2f + 2f + inputW + 6f, inputW, -136f, 28f);
 
-            // Rad/Rot row — use same layout formula as X/Y and W/H
-            MakeAbsSideLabel(sidebar, "Rad", x0, lblW, -340f, 24f);
-            _propRadius = MakeAbsInputField(sidebar, "1.00", x0 + lblW + 2f, inputW, -340f, 24f);
-            MakeAbsSideLabel(sidebar, "Rot", x0 + lblW + 2f + inputW + 4f, lblW, -340f, 24f);
-            _propRotation = MakeAbsInputField(sidebar, "0.00", x0 + lblW * 2f + 2f + inputW + 4f + 2f, inputW, -340f, 24f);
+            // Rad / Rot row (y=-172)
+            MakeAbsSideLabel(sidebar, "Rad", x0, lblW, -172f, 28f);
+            _propRadius = MakeAbsInputField(sidebar, "1.00", x0 + lblW + 2f, inputW, -172f, 28f);
+            MakeAbsSideLabel(sidebar, "Rot", x0 + lblW + 2f + inputW + 4f, lblW, -172f, 28f);
+            _propRotation = MakeAbsInputField(sidebar, "0.00",
+                x0 + lblW * 2f + 2f + inputW + 6f, inputW, -172f, 28f);
 
             WirePropertyField(_propX,        v => UpdateSelectedPlatform(x: v));
             WirePropertyField(_propY,        v => UpdateSelectedPlatform(y: v));
@@ -466,24 +622,38 @@ namespace BoplMapEditor.UI
             WirePropertyField(_propRadius,   v => UpdateSelectedPlatform(radius: v));
             WirePropertyField(_propRotation, v => UpdateSelectedPlatform(rotation: v));
 
-            // Divider
-            MakeAbsDivider(sidebar, -374f, innerW, x0);
-
-            // Delete Platform button
-            var delBtn = MakeAbsButton(sidebar, "Delete Platform", StyleHelper.DangerColor,
-                new Vector2(x0, -390f), new Vector2(innerW, 32f));
+            // DELETE button (y=-208)
+            var delBtn = MakeAbsButton(sidebar, "DELETE",
+                StyleHelper.DangerColor,
+                new Vector2(x0, -208f), new Vector2(innerW, 32f));
             delBtn.onClick.AddListener(() => {
                 _ctrl.DeleteSelected();
                 _canvasCtrl.Refresh();
                 RefreshSidebar();
             });
 
-            // Divider
-            MakeAbsDivider(sidebar, -430f, innerW, x0);
+            // Divider (y=-248)
+            MakeAbsDivider(sidebar, -248f, innerW, x0);
 
-            // + New Map button
-            var newBtn = MakeAbsButton(sidebar, "+ New Map", StyleHelper.DarkBlue,
-                new Vector2(x0, -446f), new Vector2(innerW, 32f));
+            // PUSH TO LOBBY (y=-264)
+            var lobbyBtn = MakeAbsButton(sidebar, "▶  Push to Lobby",
+                StyleHelper.Orange,
+                new Vector2(x0, -264f), new Vector2(innerW, 32f));
+            lobbyBtn.onClick.AddListener(OnPushToLobby);
+
+            // Divider (y=-304)
+            MakeAbsDivider(sidebar, -304f, innerW, x0);
+
+            // LOAD button (y=-320)
+            var loadBtn = MakeAbsButton(sidebar, "Load Map",
+                StyleHelper.DarkBlue,
+                new Vector2(x0, -320f), new Vector2(innerW, 32f));
+            loadBtn.onClick.AddListener(OnLoad);
+
+            // NEW MAP button (y=-360)
+            var newBtn = MakeAbsButton(sidebar, "+ New Map",
+                StyleHelper.DarkBlue,
+                new Vector2(x0, -360f), new Vector2(innerW, 32f));
             newBtn.onClick.AddListener(() => {
                 _ctrl.NewMap();
                 _mapNameField.text = _ctrl.CurrentMap.Name;
@@ -491,13 +661,12 @@ namespace BoplMapEditor.UI
                 RefreshSidebar();
             });
 
-            // _movPanel kept null intentionally — movement panel omitted in this redesign.
-            // RefreshSidebar guards the _movPanel call.
+            // _movPanel intentionally kept null — movement panel omitted in this redesign.
+            // RefreshSidebar guards all _movPanel calls.
         }
 
         // ── Sidebar absolute-position helpers ─────────────────────────────
 
-        // anchoredPosition uses pivot at top-left of sidebar (anchorMin=anchorMax=(0,1))
         private TextMeshProUGUI MakeAbsSideLabel(RectTransform parent, string text,
             float x, float w, float y, float h, bool bold = false, bool muted = false)
         {
@@ -692,7 +861,7 @@ namespace BoplMapEditor.UI
             if (string.IsNullOrEmpty(name)) name = "Untitled";
             _ctrl.CurrentMap.Name = name;
             _ctrl.SaveCurrentMap(name);
-            _platformCountLabel.text = "● Saved! (" + _ctrl.CurrentMap.Platforms.Count + " platforms)";
+            _platformCountLabel.text = "SAVED! (" + _ctrl.CurrentMap.Platforms.Count + ")";
             Plugin.Log.LogInfo("[MapEditorWindow] Saved map '" + name + "'");
         }
 
@@ -762,14 +931,15 @@ namespace BoplMapEditor.UI
 
         public void RefreshSidebar()
         {
-            _platformCountLabel.text = "● Platforms: " + _ctrl.CurrentMap.Platforms.Count;
-            int  sel   = _ctrl.SelectedPlatformIndex;
+            _platformCountLabel.text = "PLATFORMS: " + _ctrl.CurrentMap.Platforms.Count;
+            int  sel    = _ctrl.SelectedPlatformIndex;
             bool hasSel = sel >= 0 && sel < _ctrl.CurrentMap.Platforms.Count;
 
             if (hasSel)
             {
                 var p = _ctrl.CurrentMap.Platforms[sel];
-                _selectedInfoLabel.text  = "#" + (sel + 1) + "  " + StyleHelper.PlatformNames[Mathf.Clamp(p.Type, 0, 5)];
+                _selectedInfoLabel.text  = "#" + (sel + 1) + "  " +
+                    StyleHelper.PlatformNames[Mathf.Clamp(p.Type, 0, 5)];
                 _selectedInfoLabel.color = StyleHelper.TextSecondary;
                 if (_movPanel != null)
                 {
@@ -827,10 +997,10 @@ namespace BoplMapEditor.UI
             };
             for (int i = 0; i < _toolButtons.Count; i++)
             {
-                bool  active = i == (int)_ctrl.ActiveTool;
-                var   img    = _toolButtons[i].GetComponent<Image>();
+                bool active = i == (int)_ctrl.ActiveTool;
+                var  img    = _toolButtons[i].GetComponent<Image>();
                 if (img != null)
-                    img.color = active ? tc[i] : tc[i] * 0.50f;
+                    img.color = active ? tc[i] : tc[i] * 0.45f;
             }
         }
 
@@ -843,7 +1013,7 @@ namespace BoplMapEditor.UI
                 if (img != null)
                     img.color = active
                         ? StyleHelper.PlatformColors[i]
-                        : StyleHelper.PlatformColors[i] * 0.50f;
+                        : StyleHelper.PlatformColors[i] * 0.45f;
             }
         }
 
@@ -856,7 +1026,7 @@ namespace BoplMapEditor.UI
                 if (img != null)
                     img.color = active
                         ? StyleHelper.ThemeColors[i]
-                        : StyleHelper.ThemeColors[i] * 0.50f;
+                        : StyleHelper.ThemeColors[i] * 0.45f;
             }
         }
 
@@ -865,7 +1035,7 @@ namespace BoplMapEditor.UI
             var img = btn.GetComponent<Image>();
             if (img == null) return;
             var snapOnColor  = new Color(0.25f, 0.60f, 0.30f, 1f);
-            var snapOffColor = snapOnColor * 0.50f;
+            var snapOffColor = snapOnColor * 0.45f;
             img.color = _ctrl.SnapToGrid ? snapOnColor : snapOffColor;
         }
 
