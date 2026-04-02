@@ -43,9 +43,9 @@ namespace BoplMapEditor
 
         void Update()
         {
-            if (UnityEngine.Input.GetKeyDown(KeyCode.F8))
+            if (UnityEngine.Input.GetKeyDown(KeyCode.F9))
             {
-                Log.LogInfo("[BoplMapEditor] F8 pressed — opening browser.");
+                Log.LogInfo("[BoplMapEditor] F9 pressed — opening browser.");
                 BrowserScreen.Open();
             }
         }
