@@ -38,7 +38,7 @@ namespace BoplMapEditor
             PatchStartRequestCtor(harmony);
             PatchStartRequestHandler(harmony);
 
-            Log.LogInfo($"[BoplMapEditor] Loaded v{MyPluginInfo.PLUGIN_VERSION}. Press F8 to open Map Editor.");
+            Log.LogInfo($"[BoplMapEditor] Loaded v{MyPluginInfo.PLUGIN_VERSION}. Press F9 to open Map Editor.");
         }
 
         void Update()
