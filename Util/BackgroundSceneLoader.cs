@@ -125,11 +125,9 @@ namespace BoplMapEditor.Util
             if (mode != LoadSceneMode.Additive) return;
             SceneManager.sceneLoaded -= OnSceneLoaded;
 
-            // Update loaded scene name to actual name
             if (_loadedSceneName != null && _loadedSceneName.StartsWith("scene_"))
                 _loadedSceneName = scene.name;
 
-            // Set level type so water/background systems work
             Constants.leveltype = _loadedLevelType;
             Plugin.Log.LogInfo($"[BackgroundSceneLoader] '{scene.name}' ready. LevelType={_loadedLevelType}");
 
@@ -137,7 +135,17 @@ namespace BoplMapEditor.Util
             foreach (var root in scene.GetRootGameObjects())
                 DisableGameLogic(root);
 
-            // Scan for real platform materials from loaded level
+            // Set scene cameras to higher depth so they render ON TOP of lobby camera
+            // This makes the game background visible through transparent editor areas
+            foreach (var root in scene.GetRootGameObjects())
+            {
+                foreach (var cam in root.GetComponentsInChildren<Camera>(true))
+                {
+                    cam.depth = 10f; // higher than typical lobby camera (depth 0)
+                    Plugin.Log.LogInfo($"[BackgroundSceneLoader] Set camera '{cam.name}' depth=10");
+                }
+            }
+
             UI.StyleHelper.InvalidateMaterialCache();
             UI.StyleHelper.ScanPlatformMaterials();
         }
