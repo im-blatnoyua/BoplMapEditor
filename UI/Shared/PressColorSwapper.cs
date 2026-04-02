@@ -27,8 +27,9 @@ namespace BoplMapEditor.UI
 
         void Start()
         {
-            // Re-read after StyleHelper has loaded game colors
-            NormalColor = StyleHelper.Blue;
+            // NormalColor is set by AddPressColorSwap() to match the button's own image color,
+            // so we just sync the Image to whatever NormalColor currently holds rather than
+            // overriding it back to the global Blue.
             if (_img != null) _img.color = NormalColor;
         }
 

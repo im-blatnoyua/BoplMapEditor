@@ -10,16 +10,26 @@ namespace BoplMapEditor.UI
     {
         // ── Colors loaded from CharacterSelectHandler at runtime ──────────
         // Fallback values if the handler isn't found.
-        private static Color _blue      = new Color(0.22f, 0.50f, 0.84f, 1f);
-        private static Color _darkBlue  = new Color(0.13f, 0.28f, 0.50f, 1f);
-        private static Color _orange    = new Color(0.97f, 0.55f, 0.13f, 1f);
+        private static Color _blue      = new Color(0.125f, 0.600f, 0.933f, 1f);
+        private static Color _darkBlue  = new Color(0.10f,  0.25f,  0.45f,  1f);
+        private static Color _orange    = new Color(0.933f, 0.643f, 0.125f, 1f);
         private static bool  _colorsLoaded;
 
         public static Color Blue      { get { EnsureColors(); return _blue; } }
         public static Color DarkBlue  { get { EnsureColors(); return _darkBlue; } }
         public static Color Orange    { get { EnsureColors(); return _orange; } }
-        public static Color DarkPanel => new Color(0.08f, 0.10f, 0.15f, 0.92f);
-        public static Color White     => new Color(0.95f, 0.95f, 0.95f, 1f);
+
+        // Surface / background tones (dark game aesthetic)
+        public static Color DarkPanel     => new Color(0.07f, 0.09f, 0.14f, 0.97f);
+        public static Color DarkSurface   => new Color(0.09f, 0.11f, 0.17f, 1f);
+        public static Color DarkElevated  => new Color(0.12f, 0.15f, 0.22f, 1f);
+        public static Color DarkBorder    => new Color(0.20f, 0.25f, 0.38f, 0.7f);
+        public static Color TextPrimary   => new Color(0.95f, 0.95f, 0.95f, 1f);
+        public static Color TextSecondary => new Color(0.60f, 0.65f, 0.75f, 1f);
+        public static Color TextMuted     => new Color(0.40f, 0.43f, 0.52f, 1f);
+        public static Color White         => new Color(0.95f, 0.95f, 0.95f, 1f);
+        public static Color DangerColor   => new Color(0.80f, 0.18f, 0.18f, 1f);
+        public static Color SuccessColor  => new Color(0.20f, 0.65f, 0.30f, 1f);
 
         private static void EnsureColors()
         {
@@ -70,8 +80,6 @@ namespace BoplMapEditor.UI
         }
 
         // ── Platform materials ────────────────────────────────────────────
-        // Returns the actual shader material used by each platform type.
-        // The material uses parameters: _Scale, _BevelRadius, _RHeight, _RWidth.
         private static readonly Material?[] _platformMaterials = new Material[6];
         private static bool _materialsScanned;
 
@@ -128,7 +136,6 @@ namespace BoplMapEditor.UI
         };
 
         // ── Fonts ─────────────────────────────────────────────────────────
-        // Grab the font that CharacterSelectHandler's startText uses.
         private static TMP_FontAsset? _gameFont;
         private static bool _fontLoaded;
 
@@ -137,7 +144,6 @@ namespace BoplMapEditor.UI
             if (_fontLoaded) return _gameFont;
             _fontLoaded = true;
 
-            // Prefer the font on the lobby start button text
             var csh = Object.FindObjectOfType<CharacterSelectHandler>(true);
             if (csh != null)
             {
@@ -150,7 +156,6 @@ namespace BoplMapEditor.UI
                 }
             }
 
-            // Fallback: any TMP text in scene
             var anyText = Object.FindObjectOfType<TextMeshProUGUI>(true);
             if (anyText != null && anyText.font != null)
             {
@@ -167,7 +172,6 @@ namespace BoplMapEditor.UI
         {
             if (_hoverCurve != null) return _hoverCurve;
 
-            // Try to steal ReadyButton's HoverScaleAnim
             var rb = Object.FindObjectOfType<ReadyButton>(true);
             if (rb != null)
             {
@@ -180,9 +184,57 @@ namespace BoplMapEditor.UI
                 }
             }
 
-            // Fallback: ease-in-out
             _hoverCurve = AnimationCurve.EaseInOut(0f, 1f, 0.15f, 1.08f);
             return _hoverCurve;
+        }
+
+        // ── ReadyButton sprite steal ───────────────────────────────────────
+        // Tries to clone the ReadyButton's Image.sprite from the current scene.
+        // Returns null if the ReadyButton is not present (e.g. before lobby loads).
+        private static Sprite? _readyButtonSprite;
+        private static bool    _readyButtonSpriteSearched;
+
+        public static Sprite? TryGetReadyButtonSprite()
+        {
+            if (_readyButtonSpriteSearched) return _readyButtonSprite;
+            _readyButtonSpriteSearched = true;
+
+            var rb = Object.FindObjectOfType<ReadyButton>(true);
+            if (rb != null)
+            {
+                var img = rb.GetComponent<Image>();
+                if (img != null && img.sprite != null)
+                {
+                    _readyButtonSprite = img.sprite;
+                    Plugin.Log.LogInfo("[StyleHelper] Stole sprite from ReadyButton.");
+                    return _readyButtonSprite;
+                }
+                // Also check child images
+                foreach (var childImg in rb.GetComponentsInChildren<Image>(true))
+                {
+                    if (childImg.sprite != null)
+                    {
+                        _readyButtonSprite = childImg.sprite;
+                        Plugin.Log.LogInfo("[StyleHelper] Stole sprite from ReadyButton child image.");
+                        return _readyButtonSprite;
+                    }
+                }
+            }
+
+            Plugin.Log.LogWarning("[StyleHelper] ReadyButton sprite not found — will use MakeRoundedSprite() fallback.");
+            return null;
+        }
+
+        public static void InvalidateReadyButtonSpriteCache()
+        {
+            _readyButtonSprite = null;
+            _readyButtonSpriteSearched = false;
+        }
+
+        // Returns the ReadyButton sprite if available, else our own rounded sprite.
+        public static Sprite GetButtonSprite()
+        {
+            return TryGetReadyButtonSprite() ?? MakeRoundedSprite();
         }
 
         // ── Sprite factories ──────────────────────────────────────────────
@@ -196,40 +248,105 @@ namespace BoplMapEditor.UI
             return Sprite.Create(tex, new Rect(0, 0, 4, 4), new Vector2(0.5f, 0.5f));
         }
 
+        // High-quality 64px rounded rect sprite with anti-aliased edges.
+        // Border = 12px — works well with Image.Type.Sliced at any size.
         public static Sprite MakeRoundedSprite()
         {
-            const int size = 32;
+            const int size   = 64;
+            const float r    = 12f;  // corner radius in pixels
+            const float aa   = 1.2f; // anti-alias width in pixels
+
             var tex = new Texture2D(size, size, TextureFormat.RGBA32, false);
             tex.filterMode = FilterMode.Bilinear;
-            const float r = 7f;
-            for (int y = 0; y < size; y++)
+
+            for (int py = 0; py < size; py++)
             {
-                for (int x = 0; x < size; x++)
+                for (int px = 0; px < size; px++)
                 {
-                    float cx = Mathf.Min(x, size - 1 - x);
-                    float cy = Mathf.Min(y, size - 1 - y);
-                    bool corner = cx < r && cy < r;
-                    float d = corner ? Vector2.Distance(new Vector2(cx, cy), new Vector2(r, r)) : 0f;
-                    tex.SetPixel(x, y, new Color(1, 1, 1, d > r ? 0f : 1f));
+                    // Distance from each corner's rounded region
+                    float cx = Mathf.Min(px, size - 1 - px);
+                    float cy = Mathf.Min(py, size - 1 - py);
+
+                    float alpha;
+                    if (cx >= r || cy >= r)
+                    {
+                        // Straight edge — fully opaque
+                        alpha = 1f;
+                    }
+                    else
+                    {
+                        // Corner — distance from the corner arc centre
+                        float dx = r - cx;
+                        float dy = r - cy;
+                        float dist = Mathf.Sqrt(dx * dx + dy * dy);
+                        alpha = 1f - Mathf.Clamp01((dist - r + aa) / aa);
+                    }
+
+                    tex.SetPixel(px, py, new Color(1f, 1f, 1f, alpha));
                 }
             }
+
             tex.Apply();
             return Sprite.Create(tex, new Rect(0, 0, size, size),
                 new Vector2(0.5f, 0.5f), size / 2f, 1,
-                SpriteMeshType.FullRect, new Vector4(r, r, r, r));
+                SpriteMeshType.FullRect,
+                new Vector4(r + 2, r + 2, r + 2, r + 2));
+        }
+
+        // Thinner rounded sprite for small UI chips / badges (8px corner radius).
+        public static Sprite MakeRoundedSpriteSmall()
+        {
+            const int size   = 32;
+            const float r    = 6f;
+            const float aa   = 1.0f;
+
+            var tex = new Texture2D(size, size, TextureFormat.RGBA32, false);
+            tex.filterMode = FilterMode.Bilinear;
+
+            for (int py = 0; py < size; py++)
+            {
+                for (int px = 0; px < size; px++)
+                {
+                    float cx = Mathf.Min(px, size - 1 - px);
+                    float cy = Mathf.Min(py, size - 1 - py);
+
+                    float alpha;
+                    if (cx >= r || cy >= r)
+                    {
+                        alpha = 1f;
+                    }
+                    else
+                    {
+                        float dx = r - cx;
+                        float dy = r - cy;
+                        float dist = Mathf.Sqrt(dx * dx + dy * dy);
+                        alpha = 1f - Mathf.Clamp01((dist - r + aa) / aa);
+                    }
+
+                    tex.SetPixel(px, py, new Color(1f, 1f, 1f, alpha));
+                }
+            }
+
+            tex.Apply();
+            return Sprite.Create(tex, new Rect(0, 0, size, size),
+                new Vector2(0.5f, 0.5f), size / 2f, 1,
+                SpriteMeshType.FullRect,
+                new Vector4(r + 1, r + 1, r + 1, r + 1));
         }
 
         // ── Button styling ────────────────────────────────────────────────
-        // Normal = Blue, Hover = lighter Blue, Pressed = Orange (like the game)
         public static void StyleButton(Button btn, Color baseColor)
         {
-            // Use blue as base regardless of passed color (caller can override via img.color)
             var c = btn.colors;
-            c.normalColor      = _blue;
-            c.highlightedColor = _blue + new Color(0.10f, 0.10f, 0.12f, 0f);  // чуть светлее
-            c.pressedColor     = _orange;                                        // оранжевый при нажатии
+            c.normalColor      = baseColor;
+            c.highlightedColor = new Color(
+                Mathf.Min(baseColor.r + 0.12f, 1f),
+                Mathf.Min(baseColor.g + 0.12f, 1f),
+                Mathf.Min(baseColor.b + 0.15f, 1f),
+                baseColor.a);
+            c.pressedColor     = _orange;
             c.selectedColor    = _orange;
-            c.disabledColor    = new Color(0.25f, 0.28f, 0.35f, 0.6f);
+            c.disabledColor    = new Color(0.22f, 0.25f, 0.32f, 0.5f);
             c.colorMultiplier  = 1f;
             c.fadeDuration     = 0.08f;
             btn.colors = c;
@@ -237,23 +354,21 @@ namespace BoplMapEditor.UI
 
             if (btn.GetComponent<Image>() is Image img)
             {
-                img.color  = baseColor; // сохраняем переданный цвет для тематических кнопок
+                img.color  = baseColor;
                 img.sprite = MakeRoundedSprite();
                 img.type   = Image.Type.Sliced;
             }
         }
 
-        // Вариант для стандартных синих кнопок без тематического цвета
         public static void StyleButtonBlue(Button btn)
         {
             StyleButton(btn, _blue);
         }
 
-        // Attach this to any button to get the blue→orange press effect on the Image directly.
         public static void AddPressColorSwap(Button btn)
         {
             var swapper = btn.gameObject.AddComponent<PressColorSwapper>();
-            swapper.NormalColor  = _blue;
+            swapper.NormalColor  = btn.GetComponent<Image>()?.color ?? _blue;
             swapper.PressedColor = _orange;
         }
 
@@ -263,7 +378,7 @@ namespace BoplMapEditor.UI
             var font = GetGameFont();
             if (font != null) tmp.font = font;
             tmp.fontSize  = fontSize;
-            tmp.color     = new Color(0.95f, 0.95f, 0.95f, 1f);
+            tmp.color     = TextPrimary;
             tmp.fontStyle = bold ? FontStyles.Bold : FontStyles.Normal;
             tmp.alignment = TextAlignmentOptions.Center;
         }
