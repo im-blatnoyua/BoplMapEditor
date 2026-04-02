@@ -19,10 +19,30 @@ namespace BoplMapEditor.Core
         public int SelectedPlatformIndex = -1;
         public int PlacePlatformType = 0;
 
+        // Snap to grid
+        public bool SnapToGrid = true;
+        public float GridSize = 2.0f;
+
+        // Undo/Redo history
+        public EditorHistory History { get; private set; }
+
         // Drag state
         private HandleType? _activeHandle;
         private Vector2 _lastMouseWorld;
         private bool _isDragging;
+
+        public MapEditorController()
+        {
+            History = new EditorHistory(this);
+        }
+
+        public Vector2 Snap(Vector2 worldPos)
+        {
+            if (!SnapToGrid) return worldPos;
+            return new Vector2(
+                Mathf.Round(worldPos.x / GridSize) * GridSize,
+                Mathf.Round(worldPos.y / GridSize) * GridSize);
+        }
 
         public void Open(MapData? existing = null)
         {
@@ -30,6 +50,7 @@ namespace BoplMapEditor.Core
             CurrentMap = existing?.Clone() ?? new MapData("Untitled");
             SelectedPlatformIndex = -1;
             ActiveTool = EditorTool.Place; // start in Place mode so user can immediately add blocks
+            History.Clear();
         }
 
         public void Close()
@@ -109,14 +130,15 @@ namespace BoplMapEditor.Core
             switch (ActiveTool)
             {
                 case EditorTool.Place:
-                    AddPlatform(mouseWorld);
+                    AddPlatform(Snap(mouseWorld));
                     break;
 
                 case EditorTool.Delete:
                     int hitDel = HitTestPlatforms(mouseWorld);
                     if (hitDel >= 0)
                     {
-                        CurrentMap.Platforms.RemoveAt(hitDel);
+                        var hitP = CurrentMap.Platforms[hitDel];
+                        History.Push(new DeletePlatformCommand(hitDel, hitP));
                         SelectedPlatformIndex = -1;
                     }
                     break;
@@ -157,8 +179,9 @@ namespace BoplMapEditor.Core
 
         public void AddPlatform(Vector2 worldPos)
         {
+            worldPos = Snap(worldPos);
             var p = new PlatformData(worldPos.x, worldPos.y, 8f, 1.5f, 1f, 0f, PlacePlatformType);
-            CurrentMap.Platforms.Add(p);
+            History.Push(new AddPlatformCommand(p));
             SelectedPlatformIndex = CurrentMap.Platforms.Count - 1;
             ActiveTool = EditorTool.Select;
         }
@@ -166,7 +189,8 @@ namespace BoplMapEditor.Core
         public void DeleteSelected()
         {
             if (SelectedPlatformIndex < 0 || SelectedPlatformIndex >= CurrentMap.Platforms.Count) return;
-            CurrentMap.Platforms.RemoveAt(SelectedPlatformIndex);
+            var p = CurrentMap.Platforms[SelectedPlatformIndex];
+            History.Push(new DeletePlatformCommand(SelectedPlatformIndex, p));
             SelectedPlatformIndex = Mathf.Clamp(SelectedPlatformIndex - 1, -1, CurrentMap.Platforms.Count - 1);
         }
 

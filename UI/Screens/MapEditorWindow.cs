@@ -28,6 +28,11 @@ namespace BoplMapEditor.UI
         private readonly List<Button> _themeButtons = new List<Button>();
         private readonly List<Button> _toolButtons  = new List<Button>();
 
+        // Undo/Redo/Snap toolbar buttons
+        private Button _undoBtn = null!;
+        private Button _redoBtn = null!;
+        private Button _snapBtn = null!;
+
         // Tab fields — kept for API compatibility but wired to dummy objects
         private GameObject      _platformsTab   = null!;
         private GameObject      _environmentTab = null!;
@@ -274,6 +279,23 @@ namespace BoplMapEditor.UI
                 _themeButtons.Add(btn);
             }
 
+            AddToolbarSep(toolbar);
+
+            // ── Undo / Redo buttons ────────────────────────────────────────
+            _undoBtn = AddToolbarButton(toolbar, "↩ Undo", StyleHelper.DarkBlue, minWidth: 56);
+            _undoBtn.onClick.AddListener(OnUndo);
+            _redoBtn = AddToolbarButton(toolbar, "↪ Redo", StyleHelper.DarkBlue, minWidth: 56);
+            _redoBtn.onClick.AddListener(OnRedo);
+
+            AddToolbarSep(toolbar);
+
+            // ── Snap to grid toggle ────────────────────────────────────────
+            _snapBtn = AddToolbarButton(toolbar, "⊞ SNAP", new Color(0.25f, 0.60f, 0.30f, 1f), minWidth: 64);
+            _snapBtn.onClick.AddListener(() => {
+                _ctrl.SnapToGrid = !_ctrl.SnapToGrid;
+                UpdateSnapHighlight(_snapBtn);
+            });
+
             // Dummy tab buttons (API compatibility — never shown in toolbar)
             var dummyGo = new GameObject("TabBtns_Dummy");
             dummyGo.transform.SetParent(toolbar, false);
@@ -282,6 +304,7 @@ namespace BoplMapEditor.UI
             _tabEnvironment = dummyGo.AddComponent<Button>();
 
             UpdateToolHighlights();
+            UpdateSnapHighlight(_snapBtn);
         }
 
         private Button AddToolbarButton(RectTransform parent, string text, Color color,
@@ -834,6 +857,47 @@ namespace BoplMapEditor.UI
                     img.color = active
                         ? StyleHelper.ThemeColors[i]
                         : StyleHelper.ThemeColors[i] * 0.50f;
+            }
+        }
+
+        private void UpdateSnapHighlight(Button btn)
+        {
+            var img = btn.GetComponent<Image>();
+            if (img == null) return;
+            var snapOnColor  = new Color(0.25f, 0.60f, 0.30f, 1f);
+            var snapOffColor = snapOnColor * 0.50f;
+            img.color = _ctrl.SnapToGrid ? snapOnColor : snapOffColor;
+        }
+
+        private void OnUndo()
+        {
+            _ctrl.History.Undo();
+            _canvasCtrl.Refresh();
+            RefreshSidebar();
+        }
+
+        private void OnRedo()
+        {
+            _ctrl.History.Redo();
+            _canvasCtrl.Refresh();
+            RefreshSidebar();
+        }
+
+        void Update()
+        {
+            if (_ctrl == null) return;
+
+            bool ctrl = Input.GetKey(KeyCode.LeftControl) || Input.GetKey(KeyCode.RightControl);
+            if (ctrl)
+            {
+                if (Input.GetKeyDown(KeyCode.Z)) OnUndo();
+                if (Input.GetKeyDown(KeyCode.Y)) OnRedo();
+            }
+
+            if (Input.GetKeyDown(KeyCode.G))
+            {
+                _ctrl.SnapToGrid = !_ctrl.SnapToGrid;
+                if (_snapBtn != null) UpdateSnapHighlight(_snapBtn);
             }
         }
     }

@@ -21,12 +21,73 @@ namespace BoplMapEditor.UI
         private bool _isPanning;
         private int _draggingPlatform = -1;
         private Vector2 _dragStartWorld;
+        private PlatformData _dragStartState;
+
+        // Ghost preview for placement mode
+        private GameObject _ghostGo = null!;
+        private Image _ghostImg = null!;
 
         public void Init(MapEditorController ctrl, RectTransform viewport, RectTransform content)
         {
             _ctrl = ctrl;
             _viewport = viewport;
             _content = content;
+            CreateGhost();
+        }
+
+        private void CreateGhost()
+        {
+            _ghostGo = new GameObject("PlacementGhost");
+            _ghostGo.transform.SetParent(_content, false);
+            _ghostImg = _ghostGo.AddComponent<Image>();
+            _ghostImg.color = new Color(1f, 1f, 1f, 0.35f);
+            _ghostImg.raycastTarget = false;
+            _ghostGo.SetActive(false);
+        }
+
+        private void ShowGhost(Vector2 worldPos)
+        {
+            if (_ghostGo == null) return;
+            _ghostGo.SetActive(true);
+
+            int typeIdx = Mathf.Clamp(_ctrl.PlacePlatformType, 0, StyleHelper.PlatformColors.Length - 1);
+            Color c = StyleHelper.PlatformColors[typeIdx];
+            _ghostImg.color = new Color(c.r, c.g, c.b, 0.5f);
+
+            float hw = 8f;
+            float hh = 1.5f;
+            Vector2 canvasPos = EditorViewport.WorldToCanvas(worldPos);
+            Vector2 sizeA = EditorViewport.WorldToCanvas(new Vector2(worldPos.x - hw, worldPos.y - hh));
+            Vector2 sizeB = EditorViewport.WorldToCanvas(new Vector2(worldPos.x + hw, worldPos.y + hh));
+
+            var rt = _ghostGo.GetComponent<RectTransform>();
+            rt.anchoredPosition = canvasPos;
+            rt.sizeDelta = new Vector2(Mathf.Abs(sizeB.x - sizeA.x), Mathf.Abs(sizeB.y - sizeA.y));
+        }
+
+        private void HideGhost()
+        {
+            if (_ghostGo != null) _ghostGo.SetActive(false);
+        }
+
+        void Update()
+        {
+            if (_ctrl == null) return;
+            if (_ctrl.ActiveTool == EditorTool.Place)
+            {
+                Vector2 screenPos = Input.mousePosition;
+                Vector2 localPos;
+                if (RectTransformUtility.ScreenPointToLocalPointInRectangle(
+                    _viewport, screenPos, null, out localPos))
+                {
+                    Vector2 worldPos = _ctrl.Snap(EditorViewport.CanvasToWorld(localPos));
+                    ShowGhost(worldPos);
+                }
+            }
+            else
+            {
+                HideGhost();
+            }
         }
 
         // Rebuild all platform widgets from current map data
@@ -74,11 +135,21 @@ namespace BoplMapEditor.UI
             _ctrl.SelectedPlatformIndex = index;
             _draggingPlatform = index;
             _dragStartWorld = EditorViewport.CanvasToWorld(ScreenToCanvas(e.position));
+            // Save a copy of the platform state before drag (PlatformData is a struct — copy by value)
+            if (index >= 0 && index < _ctrl.CurrentMap.Platforms.Count)
+                _dragStartState = _ctrl.CurrentMap.Platforms[index];
             RefreshPositions();
         }
 
         public void OnPlatformPointerUp(int index, PointerEventData e)
         {
+            if (_draggingPlatform >= 0 && _draggingPlatform < _ctrl.CurrentMap.Platforms.Count)
+            {
+                var after = _ctrl.CurrentMap.Platforms[_draggingPlatform];
+                // Only record move if the platform actually moved
+                if (after.X != _dragStartState.X || after.Y != _dragStartState.Y)
+                    _ctrl.History.PushDone(new MovePlatformCommand(_draggingPlatform, _dragStartState, after));
+            }
             _draggingPlatform = -1;
         }
 
@@ -94,6 +165,10 @@ namespace BoplMapEditor.UI
             var p = _ctrl.CurrentMap.Platforms[index];
             p.X += delta.x;
             p.Y += delta.y;
+            // Snap the final position to grid
+            var snapped = _ctrl.Snap(new Vector2(p.X, p.Y));
+            p.X = snapped.x;
+            p.Y = snapped.y;
             _ctrl.CurrentMap.Platforms[index] = p;
             RefreshPositions();
         }
@@ -105,6 +180,7 @@ namespace BoplMapEditor.UI
             if (e.button != PointerEventData.InputButton.Left) return;
 
             Vector2 worldPos = EditorViewport.CanvasToWorld(ScreenToCanvas(e.position));
+            worldPos = _ctrl.Snap(worldPos);
             _ctrl.AddPlatform(worldPos);
             Refresh();
         }
