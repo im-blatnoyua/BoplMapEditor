@@ -340,24 +340,107 @@ namespace BoplMapEditor.UI
             _items.Clear();
             _selectedSlot = 0;
 
-            // One item per platform material type — use real game sprite if available
-            for (int mat = 0; mat < 6; mat++)
+            var scanned = StyleHelper.ScannedPlatforms;
+
+            if (scanned.Count > 0)
             {
-                int captureMat = mat;
-                var sprite     = StyleHelper.GetPlatformSprite(mat);
-                var color      = StyleHelper.PlatformColors[mat];
-                var name       = StyleHelper.PlatformNames[mat];
-                var item       = BuildSpriteItem(_paletteContent, sprite, color, name, mat == 0);
-                item.ThumbBg.GetComponent<Button>().onClick.AddListener(() =>
+                for (int i = 0; i < scanned.Count; i++)
                 {
-                    _selectedSlot           = captureMat;
-                    _ctrl.PlacePlatformType  = captureMat;
-                    ApplySlotHighlight();
-                });
-                _items.Add(item);
+                    int idx = i;
+                    var entry = scanned[i];
+                    var item  = BuildIslandCard(_paletteContent, entry, i == 0);
+                    item.ThumbBg.GetComponent<Button>().onClick.AddListener(() =>
+                    {
+                        _selectedSlot          = idx;
+                        _ctrl.PlacePlatformType = entry.MaterialType;
+                        ApplySlotHighlight();
+                    });
+                    _items.Add(item);
+                }
+            }
+            else
+            {
+                // Fallback — 6 material types
+                for (int mat = 0; mat < 6; mat++)
+                {
+                    int captureMat = mat;
+                    var entry = new StyleHelper.PlatformEntry
+                    {
+                        Sprite = StyleHelper.GetPlatformSprite(mat),
+                        Color  = StyleHelper.PlatformColors[mat],
+                        HalfW  = 4f, HalfH = 1f,
+                        MaterialType = mat
+                    };
+                    var item = BuildIslandCard(_paletteContent, entry, mat == 0);
+                    item.ThumbBg.GetComponent<Button>().onClick.AddListener(() =>
+                    {
+                        _selectedSlot          = captureMat;
+                        _ctrl.PlacePlatformType = captureMat;
+                        ApplySlotHighlight();
+                    });
+                    _items.Add(item);
+                }
             }
 
             ApplySlotHighlight();
+        }
+
+        PaletteItem BuildIslandCard(RectTransform parent, StyleHelper.PlatformEntry entry, bool selected)
+        {
+            // Card width adapts to island proportions — wider island = wider card
+            // Base: 80px height for the island preview, width = hw/hh * 80 clamped
+            float maxH   = PALETTE_H - 30f; // leave room for label
+            float maxW   = 200f;
+            float hw     = Mathf.Max(entry.HalfW, 0.1f);
+            float hh     = Mathf.Max(entry.HalfH, 0.1f);
+            float aspect = hw / hh;
+            float isoH   = Mathf.Min(maxH, 60f);
+            float isoW   = Mathf.Clamp(aspect * isoH, 20f, maxW);
+            float cardW  = isoW + 20f; // padding
+
+            var go = new GameObject("Island");
+            go.transform.SetParent(parent, false);
+
+            // Transparent card background — island floats in the palette
+            var bgImg = go.AddComponent<Image>();
+            bgImg.color = selected
+                ? new Color(1f, 1f, 1f, 0.18f)
+                : new Color(1f, 1f, 1f, 0.06f);
+            bgImg.sprite = StyleHelper.MakeRoundedSprite();
+            bgImg.type   = Image.Type.Sliced;
+
+            var le = go.AddComponent<LayoutElement>();
+            le.minWidth       = cardW;
+            le.flexibleHeight = 1;
+            go.AddComponent<Button>();
+
+            // Island sprite — exact proportions, centered in card
+            var islandGo = new GameObject("Island");
+            islandGo.transform.SetParent(go.transform, false);
+            var islandImg = islandGo.AddComponent<Image>();
+            islandImg.raycastTarget = false;
+
+            if (entry.Sprite != null)
+            {
+                islandImg.sprite = entry.Sprite;
+                islandImg.type   = Image.Type.Sliced;
+                islandImg.color  = Color.white;
+            }
+            else
+            {
+                islandImg.sprite = StyleHelper.MakeRoundedSprite();
+                islandImg.type   = Image.Type.Sliced;
+                islandImg.color  = entry.Color;
+            }
+
+            var irt = islandGo.GetComponent<RectTransform>();
+            irt.anchorMin        = new Vector2(0.5f, 0.5f);
+            irt.anchorMax        = new Vector2(0.5f, 0.5f);
+            irt.pivot            = new Vector2(0.5f, 0.5f);
+            irt.sizeDelta        = new Vector2(isoW, isoH);
+            irt.anchoredPosition = new Vector2(0f, 6f);
+
+            return new PaletteItem { MaterialType = entry.MaterialType, ThumbBg = bgImg, ThumbShape = islandImg };
         }
 
         PaletteItem BuildSpriteItem(RectTransform parent, Sprite? sprite, Color color,
