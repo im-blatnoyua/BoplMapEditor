@@ -143,7 +143,7 @@ namespace BoplMapEditor.Patches
             rt.anchorMin        = new Vector2(1f, 0f);
             rt.anchorMax        = new Vector2(1f, 0f);
             rt.pivot            = new Vector2(1f, 0f);
-            rt.sizeDelta        = new Vector2(500f, 140f);
+            rt.sizeDelta        = new Vector2(640f, 180f);
             rt.anchoredPosition = new Vector2(-24f, 24f);
 
             // ── Wire click ────────────────────────────────────────────────
@@ -178,7 +178,7 @@ namespace BoplMapEditor.Patches
             lblGo.transform.SetParent(go.transform, false);
             var tmp = lblGo.AddComponent<TextMeshProUGUI>();
             tmp.text      = "MAP EDITOR";
-            tmp.fontSize  = 52f;
+            tmp.fontSize  = 80f;
             tmp.fontStyle = FontStyles.Bold | FontStyles.UpperCase;
             tmp.alignment = TextAlignmentOptions.Center;
             tmp.color     = Color.white;

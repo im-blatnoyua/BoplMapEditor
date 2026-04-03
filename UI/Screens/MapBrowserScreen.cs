@@ -23,7 +23,7 @@ namespace BoplMapEditor.UI
         static readonly Color DangerRed     = new Color(0.80f, 0.18f, 0.18f, 1f);
         static readonly Color White         = Color.white;
 
-        const float TOP_BAR_H = 180f;
+        const float TOP_BAR_H = 260f;
 
         // ── References ────────────────────────────────────────────────────
         private RectTransform         _root         = null!;
@@ -102,7 +102,7 @@ namespace BoplMapEditor.UI
             var titleGo = new GameObject("Title");
             titleGo.transform.SetParent(topGo.transform, false);
             var titleTmp = titleGo.AddComponent<TextMeshProUGUI>();
-            ApplyGameFont(titleTmp, 56f, true);
+            ApplyGameFont(titleTmp, 90f, true);
             titleTmp.text = "MAP EDITOR";
             titleTmp.color = White;
             titleTmp.fontStyle = FontStyles.Bold | FontStyles.UpperCase;
@@ -113,18 +113,18 @@ namespace BoplMapEditor.UI
             var countGo = new GameObject("Count");
             countGo.transform.SetParent(topGo.transform, false);
             _countLabel = countGo.AddComponent<TextMeshProUGUI>();
-            ApplyGameFont(_countLabel, 26f, false);
+            ApplyGameFont(_countLabel, 42f, false);
             _countLabel.color = TextMuted;
             _countLabel.alignment = TextAlignmentOptions.Right;
             _countLabel.raycastTarget = false;
             countGo.AddComponent<LayoutElement>().minWidth = 80f;
 
             // + NEW MAP button
-            var newBtn = MakeButton(topGo.transform, "+ NEW MAP", _orange, 340f, 120f);
+            var newBtn = MakeButton(topGo.transform, "+ NEW MAP", _orange, 460f, 180f);
             newBtn.onClick.AddListener(OnNewMap);
 
             // BACK button
-            var backBtn = MakeButton(topGo.transform, "\u2190 BACK", _darkBlue, 200f, 120f);
+            var backBtn = MakeButton(topGo.transform, "\u2190 BACK", _darkBlue, 280f, 180f);
             backBtn.onClick.AddListener(Close);
 
             // Orange bottom accent on topbar
@@ -368,7 +368,7 @@ namespace BoplMapEditor.UI
             var lblGo = new GameObject("CountLabel");
             lblGo.transform.SetParent(stripGo.transform, false);
             _countLabel = lblGo.AddComponent<TextMeshProUGUI>();
-            ApplyGameFont(_countLabel, 26f, bold: false);
+            ApplyGameFont(_countLabel, 42f, bold: false);
             _countLabel.text               = "0 MAPS";
             _countLabel.color              = TextMuted;
             _countLabel.fontStyle          = FontStyles.UpperCase;
@@ -551,7 +551,7 @@ namespace BoplMapEditor.UI
             cardBtn.onClick.AddListener(() => { Close(); _editorScreen.Open(captureMap.Clone()); });
 
             var cardLe = cardGo.AddComponent<LayoutElement>();
-            cardLe.minHeight  = 180f;
+            cardLe.minHeight  = 260f;
             cardLe.flexibleWidth = 1;
 
             // Inner horizontal layout
@@ -608,7 +608,7 @@ namespace BoplMapEditor.UI
             var nameGo = new GameObject("Name");
             nameGo.transform.SetParent(textColGo.transform, false);
             var nameTmp = nameGo.AddComponent<TextMeshProUGUI>();
-            ApplyGameFont(nameTmp, 40f, bold: true);
+            ApplyGameFont(nameTmp, 60f, bold: true);
             nameTmp.text               = map.Name;
             nameTmp.color              = TextPrimary;
             nameTmp.fontStyle          = FontStyles.Bold;
@@ -622,7 +622,7 @@ namespace BoplMapEditor.UI
             var subGo = new GameObject("Sub");
             subGo.transform.SetParent(textColGo.transform, false);
             var subTmp = subGo.AddComponent<TextMeshProUGUI>();
-            ApplyGameFont(subTmp, 28f, bold: false);
+            ApplyGameFont(subTmp, 44f, bold: false);
             subTmp.text               = map.Platforms.Count + " platforms";
             subTmp.color              = TextMuted;
             subTmp.alignment          = TextAlignmentOptions.Left;
@@ -825,7 +825,7 @@ namespace BoplMapEditor.UI
             cardImg.type   = Image.Type.Sliced;
             var crt = card.GetComponent<RectTransform>();
             crt.anchorMin = crt.anchorMax = crt.pivot = new Vector2(0.5f, 0.5f);
-            crt.sizeDelta = new Vector2(800f, 560f);
+            crt.sizeDelta = new Vector2(1100f, 780f);
 
             var vlg = card.AddComponent<VerticalLayoutGroup>();
             vlg.padding = new RectOffset(32, 32, 28, 28);
@@ -835,20 +835,20 @@ namespace BoplMapEditor.UI
             var titleGo = new GameObject("Title");
             titleGo.transform.SetParent(card.transform, false);
             var titleTmp = titleGo.AddComponent<TextMeshProUGUI>();
-            ApplyGameFont(titleTmp, 48f, true);
+            ApplyGameFont(titleTmp, 72f, true);
             titleTmp.text = "NEW MAP"; titleTmp.alignment = TextAlignmentOptions.Center;
             titleGo.AddComponent<LayoutElement>().minHeight = 36f;
 
             // Name input
             _newMapNameInput = UIBuilder.MakeInputField(card.transform, "Map name...",
                 Vector2.zero, new Vector2(416f, 54f));
-            _newMapNameInput.gameObject.AddComponent<LayoutElement>().minHeight = 90f;
+            _newMapNameInput.gameObject.AddComponent<LayoutElement>().minHeight = 120f;
 
             // Environment label
             var envLblGo = new GameObject("EnvLabel");
             envLblGo.transform.SetParent(card.transform, false);
             var envLblTmp = envLblGo.AddComponent<TextMeshProUGUI>();
-            ApplyGameFont(envLblTmp, 26f, false);
+            ApplyGameFont(envLblTmp, 40f, false);
             envLblTmp.text = "ENVIRONMENT"; envLblTmp.alignment = TextAlignmentOptions.Center;
             envLblTmp.color = new Color(0.7f, 0.8f, 1f, 1f);
             envLblGo.AddComponent<LayoutElement>().minHeight = 36f;
@@ -858,7 +858,7 @@ namespace BoplMapEditor.UI
             envRow.transform.SetParent(card.transform, false);
             var ehlg = envRow.AddComponent<HorizontalLayoutGroup>();
             ehlg.spacing = 14; ehlg.childForceExpandWidth = true; ehlg.childForceExpandHeight = true;
-            envRow.AddComponent<LayoutElement>().minHeight = 120f;
+            envRow.AddComponent<LayoutElement>().minHeight = 170f;
 
             string[] envNames  = { "GRASS", "SNOW", "SPACE" };
             Color[]  envColors = {
@@ -894,7 +894,7 @@ namespace BoplMapEditor.UI
             botRow.transform.SetParent(card.transform, false);
             var bhlg = botRow.AddComponent<HorizontalLayoutGroup>();
             bhlg.spacing = 14; bhlg.childForceExpandWidth = true; bhlg.childForceExpandHeight = true;
-            botRow.AddComponent<LayoutElement>().minHeight = 100f;
+            botRow.AddComponent<LayoutElement>().minHeight = 140f;
 
             var cancelGo = new GameObject("Cancel");
             cancelGo.transform.SetParent(botRow.transform, false);
@@ -928,7 +928,7 @@ namespace BoplMapEditor.UI
         {
             var lGo = new GameObject("L"); lGo.transform.SetParent(parent, false);
             var lTmp = lGo.AddComponent<TextMeshProUGUI>();
-            ApplyGameFont(lTmp, 28f, true); lTmp.text = text;
+            ApplyGameFont(lTmp, 44f, true); lTmp.text = text;
             lTmp.alignment = TextAlignmentOptions.Center; lTmp.raycastTarget = false;
             var lrt = lGo.GetComponent<RectTransform>();
             lrt.anchorMin = Vector2.zero; lrt.anchorMax = Vector2.one; lrt.offsetMin = lrt.offsetMax = Vector2.zero;
