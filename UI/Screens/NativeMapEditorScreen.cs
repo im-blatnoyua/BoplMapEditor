@@ -96,7 +96,8 @@ namespace BoplMapEditor.UI
             if (_mapNameLabel != null)
                 _mapNameLabel.text = map.Name.ToUpper();
 
-            // TODO: load game level scene when scene names are confirmed
+            // Load real game battle scene — its cameras render through transparent viewport
+            BoplMapEditor.Util.BackgroundSceneLoader.Load(map.LevelTheme);
 
             StyleHelper.ScanPlatformAssets();
             RefreshPalette();
@@ -106,6 +107,7 @@ namespace BoplMapEditor.UI
         public void Close()
         {
             _ctrl.Close();
+            BoplMapEditor.Util.BackgroundSceneLoader.Unload();
             gameObject.SetActive(false);
             _browser.gameObject.SetActive(true);
             _browser.Refresh();

@@ -11,15 +11,18 @@ namespace BoplMapEditor.Util
         private static string? _loadedSceneName;
         private static LevelType _loadedLevelType;
 
-        // Short scene names to try for each theme (fallback chain)
+        // Confirmed scene names from BoplBattle_Data/globalgamemanagers:
+        // Grass FFA:       Assets/Scenes/FFA/Level1-21.unity        → name "Level1"–"Level13" unique
+        // Snow FFA:        Assets/Scenes/FFA/Snow/Level22-26.unity  → name "Level22"–"Level26" unique
+        // Space FFA:       Assets/Scenes/FFA/Space/Level35+.unity   → name "Level35", "Level37", "Level39"
         private static readonly string[][] _sceneNames =
         {
-            // Grass
-            new[] { "Level1", "Level2", "Level3", "Level4", "Level5" },
-            // Snow
-            new[] { "Level14", "Level15", "Level17", "Level18" },
-            // Space
-            new[] { "Level35", "Level37", "Level39", "Level40" },
+            // Grass (FFA/Level1-13 are unique to grass)
+            new[] { "Level1", "Level2", "Level3" },
+            // Snow (FFA/Snow/Level22-26 are unique to snow)
+            new[] { "Level22", "Level23", "Level24" },
+            // Space (FFA/Space/Level35+ are unique to space)
+            new[] { "Level35", "Level37", "Level39" },
         };
 
         private static readonly LevelType[] _themeToLevelType =
