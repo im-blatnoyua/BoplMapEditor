@@ -37,6 +37,7 @@ namespace BoplMapEditor.UI
         MapBrowserScreen    _browser = null!;
         Color _blue, _darkBlue, _orange;
         RawImage? _viewportImage;
+        bool _inDedicatedScene;
 
         // Top bar
         TextMeshProUGUI _mapNameLabel = null!;
@@ -59,47 +60,65 @@ namespace BoplMapEditor.UI
 
         // ── Factory ───────────────────────────────────────────────────────
 
+        // Injected into CharacterSelect canvas (browser → editor flow)
         public static NativeMapEditorScreen Create(
             Transform canvasRoot,
             MapEditorController ctrl,
             MapBrowserScreen browser,
             Color blue, Color darkBlue, Color orange)
         {
+            var s = Spawn(canvasRoot, ctrl, blue, darkBlue, orange);
+            s._browser = browser;
+            s.gameObject.SetActive(false);
+            return s;
+        }
+
+        // Spawned inside the dedicated Level1 editor scene
+        public static NativeMapEditorScreen CreateInScene(
+            Transform canvasRoot,
+            MapEditorController ctrl,
+            Color blue, Color darkBlue, Color orange)
+        {
+            var s = Spawn(canvasRoot, ctrl, blue, darkBlue, orange);
+            s._inDedicatedScene = true;
+            s.gameObject.SetActive(true);
+            return s;
+        }
+
+        static NativeMapEditorScreen Spawn(
+            Transform parent, MapEditorController ctrl,
+            Color blue, Color darkBlue, Color orange)
+        {
             var go = new GameObject("NativeMapEditorScreen");
-            go.transform.SetParent(canvasRoot, false);
+            go.transform.SetParent(parent, false);
             var rt = go.AddComponent<RectTransform>();
-            rt.anchorMin = Vector2.zero;
-            rt.anchorMax = Vector2.one;
+            rt.anchorMin = Vector2.zero; rt.anchorMax = Vector2.one;
             rt.offsetMin = rt.offsetMax = Vector2.zero;
 
-            // Transparent root — game scene cameras show through the viewport area.
-            // TopBar and Palette have their own opaque backgrounds.
             var rootBg = go.AddComponent<Image>();
-            rootBg.color         = Color.clear;
-            rootBg.raycastTarget = true; // still catches input so lobby isn't clickable
+            rootBg.color = Color.clear; rootBg.raycastTarget = true;
 
-            var s       = go.AddComponent<NativeMapEditorScreen>();
-            s._ctrl     = ctrl;
-            s._browser  = browser;
-            s._blue     = blue;
-            s._darkBlue = darkBlue;
-            s._orange   = orange;
+            var s = go.AddComponent<NativeMapEditorScreen>();
+            s._ctrl = ctrl; s._blue = blue; s._darkBlue = darkBlue; s._orange = orange;
             s.BuildUI(rt);
-            go.SetActive(false);
             return s;
         }
 
         // ── Public API ────────────────────────────────────────────────────
 
+        // Called from browser screen (CharacterSelect canvas flow)
         public void Open(MapData map)
+        {
+            // Use dedicated scene instead of injected canvas approach
+            EditorSceneManager.Open(map);
+        }
+
+        // Called from EditorBootstrap after dedicated scene loaded
+        public void OpenWithMap(MapData map)
         {
             _ctrl.Open(map);
             if (_mapNameLabel != null)
                 _mapNameLabel.text = map.Name.ToUpper();
-
-            // Load real game battle scene — camera renders into RenderTexture
-            BoplMapEditor.Util.BackgroundSceneLoader.Load(map.LevelTheme);
-
             StyleHelper.ScanPlatformAssets();
             RefreshPalette();
             gameObject.SetActive(true);
@@ -108,11 +127,19 @@ namespace BoplMapEditor.UI
         public void Close()
         {
             _ctrl.Close();
-            BoplMapEditor.Util.BackgroundSceneLoader.Unload();
             if (_viewportImage != null) _viewportImage.texture = null;
-            gameObject.SetActive(false);
-            _browser.gameObject.SetActive(true);
-            _browser.Refresh();
+
+            if (_inDedicatedScene)
+                EditorSceneManager.Close(); // loads CharacterSelect
+            else
+            {
+                gameObject.SetActive(false);
+                if (_browser != null)
+                {
+                    _browser.gameObject.SetActive(true);
+                    _browser.Refresh();
+                }
+            }
         }
 
         // ── Build UI ──────────────────────────────────────────────────────
