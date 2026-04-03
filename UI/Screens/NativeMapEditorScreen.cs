@@ -363,16 +363,15 @@ namespace BoplMapEditor.UI
 
         PaletteItem BuildIslandCard(RectTransform parent, StyleHelper.PlatformEntry entry, bool selected)
         {
-            // Card width adapts to island proportions — wider island = wider card
-            // Base: 80px height for the island preview, width = hw/hh * 80 clamped
-            float maxH   = PALETTE_H - 30f; // leave room for label
-            float maxW   = 200f;
-            float hw     = Mathf.Max(entry.HalfW, 0.1f);
-            float hh     = Mathf.Max(entry.HalfH, 0.1f);
-            float aspect = hw / hh;
-            float isoH   = Mathf.Min(maxH, 60f);
-            float isoW   = Mathf.Clamp(aspect * isoH, 20f, maxW);
-            float cardW  = isoW + 20f; // padding
+            // Fixed card size — sprite fits inside preserving proportions
+            const float cardW  = 120f;
+            const float thumbW = 96f;
+            const float thumbH = 56f;
+            float hw    = Mathf.Max(entry.HalfW, 0.1f);
+            float hh    = Mathf.Max(entry.HalfH, 0.1f);
+            float scale = Mathf.Min(thumbW / (hw * 2f), thumbH / (hh * 2f));
+            float isoW  = Mathf.Clamp(hw * 2f * scale, 8f, thumbW);
+            float isoH  = Mathf.Clamp(hh * 2f * scale, 4f, thumbH);
 
             var go = new GameObject("Island");
             go.transform.SetParent(parent, false);
