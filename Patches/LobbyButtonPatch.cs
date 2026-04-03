@@ -15,15 +15,25 @@ namespace BoplMapEditor.Patches
         {
             Plugin.Log.LogInfo("[LobbyButtonPatch] CharacterSelectHandler.Start postfix fired");
 
-            // joinColor is the "CLICK TO JOIN!" button — always visible, game-styled
-            var joinSource = LobbyButtonHelper.GetFieldRef<RectTransform>(__instance.characterSelectBoxes[0], "joinColor");
+            // Safe access — boxes might not be populated yet on re-entry
+            GameObject? joinSource = null;
+            try
+            {
+                if (__instance.characterSelectBoxes != null && __instance.characterSelectBoxes.Length > 0)
+                {
+                    var joinRt = LobbyButtonHelper.GetFieldRef<RectTransform>(
+                        __instance.characterSelectBoxes[0], "joinColor");
+                    joinSource = joinRt?.gameObject;
+                }
+            }
+            catch { /* ignore — fallback button will be used */ }
 
             Color blue     = LobbyButtonHelper.GetField<Color>(__instance, "blue")     ?? new Color(0.20f, 0.42f, 0.80f, 1f);
             Color darkBlue = LobbyButtonHelper.GetField<Color>(__instance, "darkBlue") ?? new Color(0.10f, 0.22f, 0.50f, 1f);
             Color orange   = LobbyButtonHelper.GetField<Color>(__instance, "orange")   ?? new Color(0.95f, 0.55f, 0.10f, 1f);
 
             BoplMapEditor.Core.EditorSceneManager.ReturnScene = "CharacterSelect";
-            LobbyButtonHelper.Inject(joinSource?.gameObject, __instance.gameObject, blue, darkBlue, orange);
+            LobbyButtonHelper.Inject(joinSource, __instance.gameObject, blue, darkBlue, orange);
         }
     }
 
@@ -103,11 +113,12 @@ namespace BoplMapEditor.Patches
             // ── Position: anchor to bottom-left, always visible ───────────
             var rt = btnGo.GetComponent<RectTransform>();
             if (rt == null) rt = btnGo.AddComponent<RectTransform>();
-            rt.anchorMin        = new Vector2(0f, 0f);
-            rt.anchorMax        = new Vector2(0f, 0f);
-            rt.pivot            = new Vector2(0f, 0f);
-            rt.sizeDelta        = new Vector2(280f, 80f);
-            rt.anchoredPosition = new Vector2(20f, 20f);
+            // Bottom-right corner — away from character boxes which are center/left
+            rt.anchorMin        = new Vector2(1f, 0f);
+            rt.anchorMax        = new Vector2(1f, 0f);
+            rt.pivot            = new Vector2(1f, 0f);
+            rt.sizeDelta        = new Vector2(380f, 110f);
+            rt.anchoredPosition = new Vector2(-24f, 24f);
 
             // ── Wire click ────────────────────────────────────────────────
             var trigger = btnGo.AddComponent<EventTrigger>();
@@ -141,7 +152,7 @@ namespace BoplMapEditor.Patches
             lblGo.transform.SetParent(go.transform, false);
             var tmp = lblGo.AddComponent<TextMeshProUGUI>();
             tmp.text      = "MAP EDITOR";
-            tmp.fontSize  = 22f;
+            tmp.fontSize  = 36f;
             tmp.fontStyle = FontStyles.Bold | FontStyles.UpperCase;
             tmp.alignment = TextAlignmentOptions.Center;
             tmp.color     = Color.white;
