@@ -23,14 +23,31 @@ namespace BoplMapEditor.Data
                         : EnvironmentSettings.ForGrass();
         }
 
+        public List<SpawnPoint> SpawnPoints = new List<SpawnPoint>();
+
+        public bool IsValid => SpawnPoints.Count >= 4;
+
         public MapData Clone()
         {
             var copy = new MapData(Name, LevelTheme);
             copy.Version = Version;
             copy.Environment = Environment.Clone();
-            foreach (var p in Platforms)
-                copy.Platforms.Add(p.Clone());
+            foreach (var p in Platforms)  copy.Platforms.Add(p.Clone());
+            foreach (var s in SpawnPoints) copy.SpawnPoints.Add(s.Clone());
             return copy;
         }
+    }
+
+    [Serializable]
+    public class SpawnPoint
+    {
+        public float X, Y;
+        public int   PlayerId; // 1-4
+
+        public SpawnPoint() { }
+        public SpawnPoint(float x, float y, int playerId)
+        { X = x; Y = y; PlayerId = playerId; }
+
+        public SpawnPoint Clone() => new SpawnPoint(X, Y, PlayerId);
     }
 }

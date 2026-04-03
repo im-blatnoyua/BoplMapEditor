@@ -56,6 +56,15 @@ namespace BoplMapEditor.UI
         RectTransform   _viewportRt  = null!;
         Transform       _widgetRoot  = null!;
 
+        // Tabs
+        int             _activeTab      = 0; // 0=Islands, 1=Spawns
+        int             _selectedSpawnId = 1; // 1-4
+        readonly GameObject?[] _spawnWidgets = new GameObject[5]; // index 1-4
+        Image[]         _tabBtns         = new Image[2];
+        GameObject      _islandsPanel    = null!;
+        GameObject      _spawnsPanel     = null!;
+        readonly Image[] _spawnSlotBtns  = new Image[4];
+
         // Game world bounds (from SceneBounds)
         const float WORLD_X_MIN = -97.27f;
         const float WORLD_X_MAX =  97.6f;
@@ -203,6 +212,12 @@ namespace BoplMapEditor.UI
             var save = TopBtn(go.transform, "SAVE", OrangeAcc, 90f, 52f);
             save.onClick.AddListener(() =>
             {
+                if (!_ctrl.CurrentMap.IsValid)
+                {
+                    int placed = _ctrl.CurrentMap.SpawnPoints.Count;
+                    Plugin.Log.LogWarning($"[Editor] Map needs 4 spawn points, has {placed}");
+                    // TODO: show warning UI — for now just log
+                }
                 MapSerializer.SaveMap(_ctrl.CurrentMap, _ctrl.CurrentMap.Name);
             });
 
@@ -297,18 +312,34 @@ namespace BoplMapEditor.UI
             worldY = _ctrl.SnapToGrid
                 ? Mathf.Round(worldY / _ctrl.GridSize) * _ctrl.GridSize : worldY;
 
-            // Add platform to map data
-            var pd = new BoplMapEditor.Data.PlatformData(
-                worldX, worldY,
-                _selectedHalfW, _selectedHalfH,
-                1.2f, 0f,
-                _ctrl.PlacePlatformType);
-            _ctrl.CurrentMap.Platforms.Add(pd);
+            if (_activeTab == 0)
+            {
+                // Place platform
+                var pd = new PlatformData(worldX, worldY, _selectedHalfW, _selectedHalfH,
+                    1.2f, 0f, _ctrl.PlacePlatformType);
+                _ctrl.CurrentMap.Platforms.Add(pd);
+                SpawnWidget(pd);
+                Plugin.Log.LogInfo($"[Editor] Platform at ({worldX:F1},{worldY:F1})");
+            }
+            else
+            {
+                // Place spawn point — remove existing for this player if any
+                _ctrl.CurrentMap.SpawnPoints.RemoveAll(s => s.PlayerId == _selectedSpawnId);
+                if (_spawnWidgets[_selectedSpawnId] != null)
+                    Destroy(_spawnWidgets[_selectedSpawnId]);
 
-            // Spawn visual widget in viewport
-            SpawnWidget(pd);
+                var sp = new SpawnPoint(worldX, worldY, _selectedSpawnId);
+                _ctrl.CurrentMap.SpawnPoints.Add(sp);
+                _spawnWidgets[_selectedSpawnId] = SpawnSpawnWidget(sp);
+                RefreshSpawnButtons();
 
-            Plugin.Log.LogInfo($"[Editor] Placed platform at ({worldX:F1},{worldY:F1}) hw={_selectedHalfW} mat={_ctrl.PlacePlatformType}");
+                // Auto-advance to next unplaced spawn
+                for (int i = 1; i <= 4; i++)
+                    if (!_ctrl.CurrentMap.SpawnPoints.Exists(s => s.PlayerId == i))
+                    { _selectedSpawnId = i; RefreshSpawnButtons(); break; }
+
+                Plugin.Log.LogInfo($"[Editor] Spawn {_selectedSpawnId} at ({worldX:F1},{worldY:F1})");
+            }
         }
 
         void SpawnWidget(BoplMapEditor.Data.PlatformData pd)
@@ -353,86 +384,182 @@ namespace BoplMapEditor.UI
             palRt.offsetMin = Vector2.zero;
             palRt.offsetMax = new Vector2(0f, PALETTE_H);
 
-            // 2px orange accent line at top of palette
-            var topAccent = new GameObject("TopAccent");
-            topAccent.transform.SetParent(palGo.transform, false);
-            var taImg = topAccent.AddComponent<Image>();
-            taImg.color        = OrangeAcc;
-            taImg.raycastTarget = false;
-            var tart = topAccent.GetComponent<RectTransform>();
-            tart.anchorMin = new Vector2(0f, 1f);
-            tart.anchorMax = Vector2.one;
-            tart.offsetMin = new Vector2(0f, -2f);
-            tart.offsetMax = Vector2.zero;
+            // Orange accent at top
+            var acc = new GameObject("Acc"); acc.transform.SetParent(palGo.transform, false);
+            acc.AddComponent<Image>().color = OrangeAcc;
+            var art = acc.GetComponent<RectTransform>();
+            art.anchorMin = new Vector2(0f,1f); art.anchorMax = Vector2.one;
+            art.offsetMin = new Vector2(0f,-2f); art.offsetMax = Vector2.zero;
 
-            // "ISLANDS" label strip (20px tall, left-aligned, muted white)
-            var labelStrip = new GameObject("LabelStrip");
-            labelStrip.transform.SetParent(palGo.transform, false);
-            var labelStripRt = labelStrip.AddComponent<RectTransform>();
-            labelStripRt.anchorMin = new Vector2(0f, 1f);
-            labelStripRt.anchorMax = Vector2.one;
-            labelStripRt.offsetMin = new Vector2(0f, -22f);
-            labelStripRt.offsetMax = Vector2.zero;
+            // ── Tab bar ───────────────────────────────────────────────────
+            const float TAB_H = 28f;
+            var tabBar = new GameObject("TabBar");
+            tabBar.transform.SetParent(palGo.transform, false);
+            var tbRt = tabBar.AddComponent<RectTransform>();
+            tbRt.anchorMin = new Vector2(0f,1f); tbRt.anchorMax = Vector2.one;
+            tbRt.offsetMin = new Vector2(0f, -(TAB_H+2f)); tbRt.offsetMax = new Vector2(0f, -2f);
+            var tbHlg = tabBar.AddComponent<HorizontalLayoutGroup>();
+            tbHlg.childForceExpandWidth = false; tbHlg.childForceExpandHeight = true;
+            tbHlg.spacing = 4; tbHlg.padding = new RectOffset(8,8,0,0);
 
-            var islandsLbl = labelStrip.AddComponent<TextMeshProUGUI>();
-            ApplyFont(islandsLbl, 11f, false);
-            islandsLbl.text      = "ISLANDS";
-            islandsLbl.color     = new Color(0.5f, 0.6f, 0.7f, 1f);
-            islandsLbl.alignment = TextAlignmentOptions.MidlineLeft;
-            var islandsLblRt = islandsLbl.GetComponent<RectTransform>();
-            islandsLblRt.anchorMin = Vector2.zero;
-            islandsLblRt.anchorMax = Vector2.one;
-            islandsLblRt.offsetMin = new Vector2(12f, 0f);
-            islandsLblRt.offsetMax = Vector2.zero;
+            string[] tabNames = { "ISLANDS", "SPAWNS" };
+            _tabBtns = new Image[2];
+            for (int i = 0; i < 2; i++)
+            {
+                int idx = i;
+                var tGo = new GameObject("Tab"+i); tGo.transform.SetParent(tabBar.transform, false);
+                var tImg = tGo.AddComponent<Image>();
+                tImg.sprite = StyleHelper.MakeRoundedSprite(); tImg.type = Image.Type.Sliced;
+                tImg.color  = i == 0 ? new Color(0.8f,0.8f,1f,1f) : new Color(0.2f,0.3f,0.5f,1f);
+                _tabBtns[i] = tImg;
+                tGo.AddComponent<LayoutElement>().minWidth = 90f;
+                var btn = tGo.AddComponent<Button>();
+                btn.onClick.AddListener(() => SwitchTab(idx));
+                var lGo = new GameObject("L"); lGo.transform.SetParent(tGo.transform, false);
+                var lTmp = lGo.AddComponent<TextMeshProUGUI>();
+                ApplyFont(lTmp, 10f, true); lTmp.text = tabNames[i];
+                lTmp.alignment = TextAlignmentOptions.Center; lTmp.raycastTarget = false;
+                lTmp.color = i == 0 ? new Color(0.1f,0.1f,0.2f) : White;
+                var lrt = lGo.GetComponent<RectTransform>();
+                lrt.anchorMin = Vector2.zero; lrt.anchorMax = Vector2.one;
+                lrt.offsetMin = lrt.offsetMax = Vector2.zero;
+            }
 
-            // ScrollRect (fills remaining height below label strip)
+            // ── Islands panel ─────────────────────────────────────────────
+            _islandsPanel = new GameObject("IslandsPanel");
+            _islandsPanel.transform.SetParent(palGo.transform, false);
+            var ipRt = _islandsPanel.AddComponent<RectTransform>();
+            ipRt.anchorMin = Vector2.zero; ipRt.anchorMax = Vector2.one;
+            ipRt.offsetMin = new Vector2(0f, 2f); ipRt.offsetMax = new Vector2(0f, -(TAB_H+2f));
+
+            BuildIslandScroll(_islandsPanel.GetComponent<RectTransform>());
+
+            // ── Spawns panel ──────────────────────────────────────────────
+            _spawnsPanel = new GameObject("SpawnsPanel");
+            _spawnsPanel.transform.SetParent(palGo.transform, false);
+            var spRt = _spawnsPanel.AddComponent<RectTransform>();
+            spRt.anchorMin = Vector2.zero; spRt.anchorMax = Vector2.one;
+            spRt.offsetMin = new Vector2(0f, 2f); spRt.offsetMax = new Vector2(0f, -(TAB_H+2f));
+
+            BuildSpawnPanel(_spawnsPanel.GetComponent<RectTransform>());
+            _spawnsPanel.SetActive(false);
+        }
+
+        void BuildIslandScroll(RectTransform parent)
+        {
             var scrollGo = new GameObject("Scroll");
-            scrollGo.transform.SetParent(palGo.transform, false);
+            scrollGo.transform.SetParent(parent, false);
             var scrollRt = scrollGo.AddComponent<RectTransform>();
-            scrollRt.anchorMin = Vector2.zero;
-            scrollRt.anchorMax = new Vector2(1f, 1f);
-            scrollRt.offsetMin = new Vector2(0f, 2f);
-            scrollRt.offsetMax = new Vector2(0f, -22f);
-
+            scrollRt.anchorMin = Vector2.zero; scrollRt.anchorMax = Vector2.one;
+            scrollRt.offsetMin = scrollRt.offsetMax = Vector2.zero;
             scrollGo.AddComponent<Image>().color = Color.clear;
 
             var scroll = scrollGo.AddComponent<ScrollRect>();
-            scroll.vertical          = false;
-            scroll.horizontal        = true;
+            scroll.vertical = false; scroll.horizontal = true;
             scroll.scrollSensitivity = 30f;
-            scroll.movementType      = ScrollRect.MovementType.Elastic;
+            scroll.movementType = ScrollRect.MovementType.Elastic;
 
-            // Viewport
             var vpGo = new GameObject("Viewport");
             vpGo.transform.SetParent(scrollGo.transform, false);
             var vpRt = vpGo.AddComponent<RectTransform>();
-            vpRt.anchorMin = Vector2.zero;
-            vpRt.anchorMax = Vector2.one;
+            vpRt.anchorMin = Vector2.zero; vpRt.anchorMax = Vector2.one;
             vpRt.offsetMin = vpRt.offsetMax = Vector2.zero;
-            vpGo.AddComponent<Image>().color = Color.white; // must be >0 for Mask stencil
+            vpGo.AddComponent<Image>().color = Color.white;
             vpGo.AddComponent<Mask>().showMaskGraphic = false;
             scroll.viewport = vpRt;
 
-            // Content
             var contentGo = new GameObject("Content");
             contentGo.transform.SetParent(vpGo.transform, false);
             var contentRt = contentGo.AddComponent<RectTransform>();
-            contentRt.anchorMin = new Vector2(0f, 0f);
-            contentRt.anchorMax = new Vector2(0f, 1f);
-            contentRt.pivot     = new Vector2(0f, 0.5f);
+            contentRt.anchorMin = new Vector2(0f,0f); contentRt.anchorMax = new Vector2(0f,1f);
+            contentRt.pivot = new Vector2(0f,0.5f);
             contentRt.offsetMin = contentRt.offsetMax = Vector2.zero;
-
             var hlg = contentGo.AddComponent<HorizontalLayoutGroup>();
-            hlg.padding               = new RectOffset(8, 8, 4, 4);
-            hlg.spacing               = 6;
-            hlg.childForceExpandWidth  = false;
-            hlg.childForceExpandHeight = true;
-
+            hlg.padding = new RectOffset(8,8,4,4); hlg.spacing = 6;
+            hlg.childForceExpandWidth = false; hlg.childForceExpandHeight = true;
             contentGo.AddComponent<ContentSizeFitter>().horizontalFit =
                 ContentSizeFitter.FitMode.PreferredSize;
-
-            scroll.content  = contentRt;
+            scroll.content = contentRt;
             _paletteContent = contentRt;
+        }
+
+        void BuildSpawnPanel(RectTransform parent)
+        {
+            var hlg = parent.gameObject.AddComponent<HorizontalLayoutGroup>();
+            hlg.padding = new RectOffset(16,16,8,8); hlg.spacing = 16;
+            hlg.childForceExpandHeight = true; hlg.childForceExpandWidth = false;
+            hlg.childAlignment = TextAnchor.MiddleLeft;
+
+            // Spawn label
+            var lblGo = new GameObject("Lbl"); lblGo.transform.SetParent(parent, false);
+            var lbl = lblGo.AddComponent<TextMeshProUGUI>();
+            ApplyFont(lbl, 11f, false); lbl.text = "SPAWN POINTS (need 4):";
+            lbl.color = new Color(0.7f,0.8f,1f); lbl.raycastTarget = false;
+            lblGo.AddComponent<LayoutElement>().minWidth = 160f;
+
+            // 4 spawn buttons
+            Color[] spawnColors = {
+                new Color(0.9f,0.2f,0.2f,1f),  // 1 = red
+                new Color(0.2f,0.6f,0.9f,1f),  // 2 = blue
+                new Color(0.2f,0.8f,0.2f,1f),  // 3 = green
+                new Color(0.9f,0.7f,0.1f,1f),  // 4 = yellow
+            };
+
+            _spawnSlotBtns[0] = null!; // index offset
+            for (int i = 0; i < 4; i++)
+            {
+                int spId = i + 1;
+                var sGo = new GameObject("Spawn"+spId); sGo.transform.SetParent(parent, false);
+                var sImg = sGo.AddComponent<Image>();
+                sImg.sprite = StyleHelper.MakeRoundedSprite(); sImg.type = Image.Type.Sliced;
+                sImg.color  = spawnColors[i];
+                var sle = sGo.AddComponent<LayoutElement>();
+                sle.minWidth = 70f; sle.flexibleHeight = 1;
+                var sBtn = sGo.AddComponent<Button>();
+                sBtn.onClick.AddListener(() => { _selectedSpawnId = spId; RefreshSpawnButtons(); });
+                _spawnSlotBtns[i] = sImg;
+
+                var lGo = new GameObject("L"); lGo.transform.SetParent(sGo.transform, false);
+                var lTmp = lGo.AddComponent<TextMeshProUGUI>();
+                ApplyFont(lTmp, 14f, true); lTmp.text = spId.ToString();
+                lTmp.alignment = TextAlignmentOptions.Center; lTmp.raycastTarget = false;
+                var lrt = lGo.GetComponent<RectTransform>();
+                lrt.anchorMin = Vector2.zero; lrt.anchorMax = Vector2.one;
+                lrt.offsetMin = lrt.offsetMax = Vector2.zero;
+            }
+        }
+
+        void SwitchTab(int tab)
+        {
+            _activeTab = tab;
+            _islandsPanel.SetActive(tab == 0);
+            _spawnsPanel.SetActive(tab == 1);
+            for (int i = 0; i < _tabBtns.Length; i++)
+            {
+                _tabBtns[i].color = i == tab
+                    ? new Color(0.8f,0.8f,1f,1f)
+                    : new Color(0.2f,0.3f,0.5f,1f);
+                var lbl = _tabBtns[i].GetComponentInChildren<TextMeshProUGUI>();
+                if (lbl != null) lbl.color = i == tab ? new Color(0.1f,0.1f,0.2f) : White;
+            }
+        }
+
+        void RefreshSpawnButtons()
+        {
+            Color[] cols = {
+                new Color(0.9f,0.2f,0.2f), new Color(0.2f,0.6f,0.9f),
+                new Color(0.2f,0.8f,0.2f), new Color(0.9f,0.7f,0.1f),
+            };
+            for (int i = 0; i < 4; i++)
+            {
+                if (_spawnSlotBtns[i] == null) continue;
+                bool sel = (i+1) == _selectedSpawnId;
+                bool placed = _ctrl.CurrentMap.SpawnPoints.Exists(s => s.PlayerId == i+1);
+                _spawnSlotBtns[i].color = sel
+                    ? Color.white
+                    : placed ? new Color(cols[i].r*0.6f, cols[i].g*0.6f, cols[i].b*0.6f)
+                    : cols[i];
+            }
         }
 
         void RefreshPalette()
@@ -738,20 +865,55 @@ namespace BoplMapEditor.UI
             ApplySlotHighlight();
         }
 
-        System.Collections.IEnumerator RebuildWidgets()
+        IEnumerator RebuildWidgets()
         {
-            yield return null; // wait one frame for layout
+            yield return null;
             if (_widgetRoot == null) yield break;
             foreach (Transform c in _widgetRoot) Destroy(c.gameObject);
             foreach (var pd in _ctrl.CurrentMap.Platforms)
             {
-                _selectedSprite = StyleHelper.GetPlatformSprite(
-                    Mathf.Clamp(pd.Type, 0, 4));
+                _selectedSprite = StyleHelper.GetPlatformSprite(Mathf.Clamp(pd.Type, 0, 4));
                 SpawnWidget(pd);
             }
-            // Restore selected sprite from current slot
+            for (int i = 1; i <= 4; i++) _spawnWidgets[i] = null;
+            foreach (var sp in _ctrl.CurrentMap.SpawnPoints)
+                _spawnWidgets[sp.PlayerId] = SpawnSpawnWidget(sp);
             if (_items.Count > _selectedSlot)
                 _selectedSprite = _items[_selectedSlot].ThumbShape?.sprite;
+            RefreshSpawnButtons();
+        }
+
+        GameObject SpawnSpawnWidget(SpawnPoint sp)
+        {
+            var go = new GameObject("Spawn_" + sp.PlayerId);
+            go.transform.SetParent(_widgetRoot, false);
+
+            Color[] cols = {
+                new Color(0.9f,0.2f,0.2f), new Color(0.2f,0.6f,0.9f),
+                new Color(0.2f,0.8f,0.2f), new Color(0.9f,0.7f,0.1f),
+            };
+            var img = go.AddComponent<Image>();
+            img.sprite = StyleHelper.MakeRoundedSprite(); img.type = Image.Type.Sliced;
+            img.color  = cols[Mathf.Clamp(sp.PlayerId-1, 0, 3)];
+
+            var numGo = new GameObject("Num"); numGo.transform.SetParent(go.transform, false);
+            var numTmp = numGo.AddComponent<TextMeshProUGUI>();
+            ApplyFont(numTmp, 14f, true); numTmp.text = sp.PlayerId.ToString();
+            numTmp.alignment = TextAlignmentOptions.Center; numTmp.raycastTarget = false;
+            var nrt = numGo.GetComponent<RectTransform>();
+            nrt.anchorMin = Vector2.zero; nrt.anchorMax = Vector2.one;
+            nrt.offsetMin = nrt.offsetMax = Vector2.zero;
+
+            // Position in viewport
+            var vSize = _viewportRt.rect.size;
+            float cx = (sp.X - WORLD_X_MIN) / (WORLD_X_MAX - WORLD_X_MIN) * vSize.x + _viewportRt.rect.xMin;
+            float cy = (sp.Y - WORLD_Y_MIN) / (WORLD_Y_MAX - WORLD_Y_MIN) * vSize.y + _viewportRt.rect.yMin;
+            var rt = go.GetComponent<RectTransform>();
+            rt.anchorMin = rt.anchorMax = rt.pivot = new Vector2(0.5f, 0.5f);
+            rt.sizeDelta = new Vector2(30f, 30f);
+            rt.anchoredPosition = new Vector2(cx, cy);
+
+            return go;
         }
 
         void ApplySlotHighlight()
