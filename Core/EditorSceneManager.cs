@@ -5,36 +5,55 @@ using UnityEngine.SceneManagement;
 
 namespace BoplMapEditor.Core
 {
-    // Manages full scene transitions for the map editor.
-    // Open()  → loads Level1 as the editor backdrop (replaces current scene)
-    // Close() → loads CharacterSelect back
+    // Manages the editor "scene" by:
+    // 1. Loading the level additively (keeps its own visual init intact)
+    // 2. Hiding the CharacterSelect canvas so only the level shows
+    // 3. Showing a ScreenSpaceOverlay canvas with editor UI on top
+    // 4. Cleaning up on close
     public static class EditorSceneManager
     {
-        // Map waiting to be edited after the scene loads
-        public static MapData? PendingMap { get; private set; }
-        public static bool IsEditorScene { get; private set; }
+        public static MapData? PendingMap    { get; private set; }
+        public static bool     IsEditorScene { get; private set; }
 
-        private static readonly string[] _grassScenes = { "Level1", "Level2", "Level3" };
-        private static readonly string[] _snowScenes  = { "Level22", "Level23", "Level24" };
-        private static readonly string[] _spaceScenes = { "Level35", "Level37", "Level39" };
+        static string? _loadedScene;
+        static Canvas? _hiddenLobbyCanvas;
+
+        private static readonly string[][] _sceneNames =
+        {
+            new[] { "Level1", "Level2", "Level3" },
+            new[] { "Level22", "Level23", "Level24" },
+            new[] { "Level35", "Level37", "Level39" },
+        };
 
         public static void Open(MapData map)
         {
+            if (IsEditorScene) return;
+
             PendingMap    = map;
             IsEditorScene = true;
 
-            string[] candidates = map.LevelTheme == 2 ? _spaceScenes
-                                : map.LevelTheme == 1 ? _snowScenes
-                                : _grassScenes;
+            // Hide the CharacterSelect canvas so lobby UI doesn't show through
+            var lobbyCanvas = Object.FindObjectOfType<Canvas>();
+            if (lobbyCanvas != null)
+            {
+                lobbyCanvas.enabled = false;
+                _hiddenLobbyCanvas  = lobbyCanvas;
+                Plugin.Log.LogInfo($"[EditorSceneMgr] Hid canvas: {lobbyCanvas.name}");
+            }
 
-            SceneManager.sceneLoaded += OnEditorSceneLoaded;
+            var names = map.LevelTheme == 2 ? _sceneNames[2]
+                      : map.LevelTheme == 1 ? _sceneNames[1]
+                      : _sceneNames[0];
 
-            foreach (var name in candidates)
+            SceneManager.sceneLoaded += OnLevelLoaded;
+
+            foreach (var name in names)
             {
                 try
                 {
-                    SceneManager.LoadScene(name);
-                    Plugin.Log.LogInfo($"[EditorSceneManager] Loading scene '{name}'");
+                    SceneManager.LoadScene(name, LoadSceneMode.Additive);
+                    _loadedScene = name;
+                    Plugin.Log.LogInfo($"[EditorSceneMgr] Loading '{name}' additively");
                     return;
                 }
                 catch { }
@@ -42,42 +61,84 @@ namespace BoplMapEditor.Core
 
             // Fallback by index
             int idx = map.LevelTheme == 2 ? 60 : map.LevelTheme == 1 ? 30 : 6;
-            SceneManager.LoadScene(idx);
-            Plugin.Log.LogInfo($"[EditorSceneManager] Loading scene by index {idx}");
+            try
+            {
+                SceneManager.LoadScene(idx, LoadSceneMode.Additive);
+                _loadedScene = $"idx_{idx}";
+                Plugin.Log.LogInfo($"[EditorSceneMgr] Loading index {idx} additively");
+            }
+            catch (System.Exception ex)
+            {
+                Plugin.Log.LogError($"[EditorSceneMgr] Failed to load any level: {ex.Message}");
+                Cleanup();
+            }
         }
 
         public static void Close()
         {
             IsEditorScene = false;
             PendingMap    = null;
-            SceneManager.LoadScene("CharacterSelect");
-            Plugin.Log.LogInfo("[EditorSceneManager] Returning to CharacterSelect");
+            Cleanup();
         }
 
-        private static void OnEditorSceneLoaded(Scene scene, LoadSceneMode mode)
+        static void Cleanup()
         {
-            if (mode != LoadSceneMode.Single) return;
-            if (!IsEditorScene) return;
-            SceneManager.sceneLoaded -= OnEditorSceneLoaded;
+            SceneManager.sceneLoaded -= OnLevelLoaded;
 
-            Plugin.Log.LogInfo($"[EditorSceneManager] Scene '{scene.name}' ready — spawning editor UI");
+            // Unload the level scene
+            if (_loadedScene != null)
+            {
+                try { SceneManager.UnloadSceneAsync(_loadedScene); } catch { }
+                _loadedScene = null;
+            }
 
-            // Disable game logic (players, abilities etc.)
+            // Restore lobby canvas
+            if (_hiddenLobbyCanvas != null)
+            {
+                _hiddenLobbyCanvas.enabled = true;
+                _hiddenLobbyCanvas = null;
+            }
+
+            Plugin.Log.LogInfo("[EditorSceneMgr] Closed.");
+        }
+
+        static void OnLevelLoaded(Scene scene, LoadSceneMode mode)
+        {
+            if (mode != LoadSceneMode.Additive) return;
+            SceneManager.sceneLoaded -= OnLevelLoaded;
+
+            if (_loadedScene != null && _loadedScene.StartsWith("idx_"))
+                _loadedScene = scene.name;
+
+            Plugin.Log.LogInfo($"[EditorSceneMgr] Level '{scene.name}' ready");
+
+            // Disable only gameplay logic — keep visual systems alive
             foreach (var root in scene.GetRootGameObjects())
                 DisableGameLogic(root);
 
-            // Spawn a bootstrap MonoBehaviour that builds the editor UI
+            // Set level cameras to depth 1 so they render over lobby camera (depth 0)
+            foreach (var root in scene.GetRootGameObjects())
+                foreach (var cam in root.GetComponentsInChildren<Camera>(true))
+                {
+                    cam.depth = 1f;
+                    Plugin.Log.LogInfo($"[EditorSceneMgr] Camera '{cam.name}' depth=1");
+                }
+
+            // Scan platform assets
+            StyleHelper.InvalidateMaterialCache();
+            StyleHelper.ScanPlatformAssets();
+
+            // Spawn bootstrap to build editor UI
             var go = new GameObject("EditorBootstrap");
+            SceneManager.MoveGameObjectToScene(go, scene);
             go.AddComponent<EditorBootstrap>();
         }
 
-        private static void DisableGameLogic(GameObject root)
+        static void DisableGameLogic(GameObject root)
         {
-            // Only kill player/game-session logic — keep visual/camera systems alive
             string[] kill = {
                 "GameSessionHandler", "PlayerHandler", "PlayerInit",
                 "AbilitySpawner", "BoplCharacter", "PlayerBody",
-                "BoplBody", "DPhysicsManager", "DetPhysics"
             };
             foreach (var typeName in kill)
             {
@@ -93,8 +154,6 @@ namespace BoplMapEditor.Core
         }
     }
 
-    // Bootstrap spawned in the editor scene — waits a couple frames for
-    // Unity to finish scene init, then builds the editor UI
     public class EditorBootstrap : MonoBehaviour
     {
         int _frames;
@@ -102,24 +161,21 @@ namespace BoplMapEditor.Core
         void Update()
         {
             _frames++;
-            // Wait 3 frames so cameras, Updater and visual systems fully initialise
             if (_frames < 3) return;
 
             if (EditorSceneManager.PendingMap == null)
             {
-                Plugin.Log.LogWarning("[EditorBootstrap] No pending map — returning to lobby");
                 EditorSceneManager.Close();
                 Destroy(gameObject);
                 return;
             }
 
-            UI.StyleHelper.LoadGameColors();
-            UI.StyleHelper.ScanPlatformAssets();
-            var blue     = UI.StyleHelper.Blue;
-            var darkBlue = UI.StyleHelper.DarkBlue;
-            var orange   = UI.StyleHelper.Orange;
+            StyleHelper.LoadGameColors();
+            var blue     = StyleHelper.Blue;
+            var darkBlue = StyleHelper.DarkBlue;
+            var orange   = StyleHelper.Orange;
 
-            // ScreenSpaceOverlay canvas — Level1 renders behind, our UI on top
+            // ScreenSpaceOverlay canvas — always on top regardless of camera depths
             var canvasGo = new GameObject("EditorCanvas");
             var canvas   = canvasGo.AddComponent<Canvas>();
             canvas.renderMode   = RenderMode.ScreenSpaceOverlay;
