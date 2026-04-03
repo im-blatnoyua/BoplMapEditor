@@ -36,6 +36,7 @@ namespace BoplMapEditor.UI
         MapEditorController _ctrl    = null!;
         MapBrowserScreen    _browser = null!;
         Color _blue, _darkBlue, _orange;
+        Camera? _lobbyCamera;
 
         // Top bar
         TextMeshProUGUI _mapNameLabel = null!;
@@ -96,7 +97,11 @@ namespace BoplMapEditor.UI
             if (_mapNameLabel != null)
                 _mapNameLabel.text = map.Name.ToUpper();
 
-            // Load real game battle scene — its cameras render through transparent viewport
+            // Disable lobby camera so it doesn't render over the battle scene
+            _lobbyCamera = Camera.main;
+            if (_lobbyCamera != null) _lobbyCamera.enabled = false;
+
+            // Load real game battle scene
             BoplMapEditor.Util.BackgroundSceneLoader.Load(map.LevelTheme);
 
             StyleHelper.ScanPlatformAssets();
@@ -108,6 +113,8 @@ namespace BoplMapEditor.UI
         {
             _ctrl.Close();
             BoplMapEditor.Util.BackgroundSceneLoader.Unload();
+            // Re-enable lobby camera
+            if (_lobbyCamera != null) _lobbyCamera.enabled = true;
             gameObject.SetActive(false);
             _browser.gameObject.SetActive(true);
             _browser.Refresh();

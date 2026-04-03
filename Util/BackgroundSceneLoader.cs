@@ -146,8 +146,8 @@ namespace BoplMapEditor.Util
                 {
                     // depth=-5: renders BEFORE the UI canvas so ScreenSpaceOverlay sits on top.
                     // Transparent viewport area in the canvas then shows this camera's output.
-                    cam.depth = -5f;
-                    Plugin.Log.LogInfo($"[BackgroundSceneLoader] Set camera '{cam.name}' depth=-5");
+                    cam.depth = 1f;
+                    Plugin.Log.LogInfo($"[BackgroundSceneLoader] Set camera '{cam.name}' depth=1");
                 }
             }
 
