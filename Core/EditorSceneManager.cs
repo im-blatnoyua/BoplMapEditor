@@ -67,12 +67,7 @@ namespace BoplMapEditor.Core
             SceneManager.sceneLoaded -= OnLevelLoaded;
             Plugin.Log.LogInfo($"[EditorSceneMgr] Level '{scene.name}' loaded");
 
-            // 1. Scan sprites + platform data BEFORE hiding
-            StyleHelper.InvalidateMaterialCache();
-            StyleHelper.ScanPlatformAssets();
-            StyleHelper.ScanAllPlatformsFromScene();
-
-            // 2. Hide platforms — disable all SpriteRenderers including children (grass etc.)
+            // Hide platforms — sprites scanned later in EditorBootstrap after Awake() runs
             foreach (var root in scene.GetRootGameObjects())
                 foreach (var srr in root.GetComponentsInChildren<StickyRoundedRectangle>(true))
                     foreach (var sr in srr.GetComponentsInChildren<SpriteRenderer>(true))
@@ -124,6 +119,16 @@ namespace BoplMapEditor.Core
             }
 
             StyleHelper.LoadGameColors();
+            // Scan AFTER Awake() ran — sprites are now valid
+            StyleHelper.InvalidateMaterialCache();
+            StyleHelper.ScanPlatformAssets();
+            StyleHelper.ScanAllPlatformsFromScene();
+            // Re-hide platforms (Awake may have re-enabled renderers)
+            foreach (var srr in Object.FindObjectsOfType<StickyRoundedRectangle>(true))
+                foreach (var sr in srr.GetComponentsInChildren<SpriteRenderer>(true))
+                    sr.enabled = false;
+            Plugin.Log.LogInfo($"[EditorBootstrap] {StyleHelper.ScannedPlatforms.Count} platforms scanned");
+
             var blue     = StyleHelper.Blue;
             var darkBlue = StyleHelper.DarkBlue;
             var orange   = StyleHelper.Orange;
