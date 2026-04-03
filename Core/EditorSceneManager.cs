@@ -134,36 +134,21 @@ namespace BoplMapEditor.Core
             go.AddComponent<EditorBootstrap>();
         }
 
-        // Keep only background/water visuals — disable everything else
         static void DisableGameLogic(GameObject root)
         {
-            // GameObjects to keep alive (background camera + sky + water)
-            string[] keepNames = {
-                "BackgroundCamera", "BackgroundComponents",
-                "skyBIG", "clouds1", "clouds2", "clouds3",
-                "LevelWater", "ReflectiveWater", "WaterGradient",
-                "WaterTextureMask", "Water2D", "ReflectiveCamera",
-                "_BackgroundRT", "platform+WaterMaskCamera",
-            };
-
-            // Disable MonoBehaviours on objects NOT in the keep list
-            foreach (var mb in root.GetComponentsInChildren<MonoBehaviour>(true))
+            // 1. Hide all platforms — disable SpriteRenderer on StickyRoundedRectangle objects
+            foreach (var srr in root.GetComponentsInChildren<StickyRoundedRectangle>(true))
             {
-                if (mb == null) continue;
-                string goName = mb.gameObject.name;
-
-                bool keep = false;
-                foreach (var k in keepNames)
-                    if (goName.Contains(k)) { keep = true; break; }
-
-                if (!keep) mb.enabled = false;
+                var sr = srr.GetComponent<SpriteRenderer>();
+                if (sr != null) sr.enabled = false;
+                srr.enabled = false;
             }
 
-            // Also specifically kill physics/player components by type name
+            // 2. Kill gameplay logic components by type name
             string[] killTypes = {
-                "BoplBody", "BoplCharacter", "PlayerBody",
-                "PlayerInit", "PlayerHandler", "GameSessionHandler",
-                "AbilitySpawner", "DPhysicsManager", "DetPhysics",
+                "GameSessionHandler", "PlayerHandler", "PlayerInit",
+                "AbilitySpawner", "BoplCharacter", "PlayerBody", "BoplBody",
+                "DPhysicsManager", "DetPhysics", "Updater",
             };
             foreach (var typeName in killTypes)
                 foreach (var asm in System.AppDomain.CurrentDomain.GetAssemblies())
@@ -174,6 +159,9 @@ namespace BoplMapEditor.Core
                         if (comp is Behaviour b) b.enabled = false;
                     break;
                 }
+
+            int platforms = root.GetComponentsInChildren<StickyRoundedRectangle>(true).Length;
+            Plugin.Log.LogInfo($"[EditorSceneMgr] Hid {platforms} platforms in '{root.name}'");
         }
     }
 
