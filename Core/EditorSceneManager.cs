@@ -73,9 +73,11 @@ namespace BoplMapEditor.Core
 
         private static void DisableGameLogic(GameObject root)
         {
+            // Only kill player/game-session logic — keep visual/camera systems alive
             string[] kill = {
                 "GameSessionHandler", "PlayerHandler", "PlayerInit",
-                "AbilitySpawner", "BoplCharacter", "PlayerBody", "Updater"
+                "AbilitySpawner", "BoplCharacter", "PlayerBody",
+                "BoplBody", "DPhysicsManager", "DetPhysics"
             };
             foreach (var typeName in kill)
             {
@@ -91,12 +93,18 @@ namespace BoplMapEditor.Core
         }
     }
 
-    // Bootstrap spawned in the editor scene — builds the UI on the next frame
-    // (gives Unity time to finish scene init before we add canvas)
+    // Bootstrap spawned in the editor scene — waits a couple frames for
+    // Unity to finish scene init, then builds the editor UI
     public class EditorBootstrap : MonoBehaviour
     {
-        void Start()
+        int _frames;
+
+        void Update()
         {
+            _frames++;
+            // Wait 3 frames so cameras, Updater and visual systems fully initialise
+            if (_frames < 3) return;
+
             if (EditorSceneManager.PendingMap == null)
             {
                 Plugin.Log.LogWarning("[EditorBootstrap] No pending map — returning to lobby");
@@ -105,36 +113,27 @@ namespace BoplMapEditor.Core
                 return;
             }
 
-            // Scan platform assets now that the level scene is loaded
-            UI.StyleHelper.ScanPlatformAssets();
-
-            // Get game colors from CharacterSelectHandler if still alive,
-            // otherwise use fallback
             UI.StyleHelper.LoadGameColors();
+            UI.StyleHelper.ScanPlatformAssets();
             var blue     = UI.StyleHelper.Blue;
             var darkBlue = UI.StyleHelper.DarkBlue;
             var orange   = UI.StyleHelper.Orange;
 
-            // Create our own ScreenSpaceOverlay canvas — the Level1 scene
-            // renders the background, our canvas sits on top
+            // ScreenSpaceOverlay canvas — Level1 renders behind, our UI on top
             var canvasGo = new GameObject("EditorCanvas");
             var canvas   = canvasGo.AddComponent<Canvas>();
-            canvas.renderMode  = RenderMode.ScreenSpaceOverlay;
+            canvas.renderMode   = RenderMode.ScreenSpaceOverlay;
             canvas.sortingOrder = 100;
             var scaler = canvasGo.AddComponent<UnityEngine.UI.CanvasScaler>();
-            scaler.uiScaleMode        = UnityEngine.UI.CanvasScaler.ScaleMode.ScaleWithScreenSize;
+            scaler.uiScaleMode         = UnityEngine.UI.CanvasScaler.ScaleMode.ScaleWithScreenSize;
             scaler.referenceResolution = new Vector2(1280, 720);
             scaler.matchWidthOrHeight  = 0.5f;
             canvasGo.AddComponent<UnityEngine.UI.GraphicRaycaster>();
 
-            // Build the editor screen inside this canvas
             var screen = NativeMapEditorScreen.CreateInScene(
-                canvasGo.transform,
-                Plugin.Editor,
-                blue, darkBlue, orange);
+                canvasGo.transform, Plugin.Editor, blue, darkBlue, orange);
 
             screen.OpenWithMap(EditorSceneManager.PendingMap);
-
             Destroy(gameObject);
         }
     }
