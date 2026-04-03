@@ -8,6 +8,22 @@ using System.Reflection;
 
 namespace BoplMapEditor.Patches
 {
+    // Also patch Awake as backup — runs before Start, ensures button always created
+    [HarmonyPatch(typeof(CharacterSelectHandler), "Awake")]
+    public static class LobbyButtonAwakePatch
+    {
+        static void Postfix(CharacterSelectHandler __instance)
+        {
+            if (GameObject.Find(LobbyButtonHelper.TAG) != null) return;
+            Color blue   = LobbyButtonHelper.GetField<Color>(__instance, "blue")   ?? new Color(0.20f, 0.42f, 0.80f, 1f);
+            Color orange = LobbyButtonHelper.GetField<Color>(__instance, "orange") ?? new Color(0.95f, 0.55f, 0.10f, 1f);
+            var canvas = __instance.GetComponentInParent<Canvas>()
+                      ?? Object.FindObjectOfType<Canvas>();
+            if (canvas == null) return;
+            LobbyButtonHelper.CreateButton(null, canvas, blue, new Color(0.10f,0.22f,0.50f), orange);
+        }
+    }
+
     [HarmonyPatch(typeof(CharacterSelectHandler), "Start")]
     public static class LobbyButtonPatch
     {
@@ -55,7 +71,7 @@ namespace BoplMapEditor.Patches
 
     public static class LobbyButtonHelper
     {
-        const string TAG = "BoplMapEditorBtn";
+        public const string TAG = "BoplMapEditorBtn";
 
         // ── Step 1: clone the button (critical — must always succeed) ─────
 
@@ -77,10 +93,17 @@ namespace BoplMapEditor.Patches
             }
             Plugin.Log.LogInfo($"[LobbyButtonPatch] Canvas: {canvas.name}");
 
-            // ── Prevent duplicate ─────────────────────────────────────────
-            if (canvas.transform.Find(TAG) != null)
+            // ── Prevent duplicate (search all scene, not just canvas children) ─
+            if (Object.FindObjectOfType<Canvas>()?.transform.Find(TAG) != null
+                || GameObject.Find(TAG) != null)
             {
                 Plugin.Log.LogInfo("[LobbyButtonPatch] Button already exists, skipping.");
+                // Still reopen browser if needed
+                if (BoplMapEditor.Core.EditorSceneManager.ReopenBrowser)
+                {
+                    BoplMapEditor.Core.EditorSceneManager.ReopenBrowser = false;
+                    Plugin.BrowserScreen?.Open();
+                }
                 return;
             }
 
@@ -105,7 +128,7 @@ namespace BoplMapEditor.Patches
             Plugin.Log.LogInfo("[LobbyButtonPatch] Inject complete.");
         }
 
-        static void CreateButton(GameObject? joinSource, Canvas canvas,
+        public static void CreateButton(GameObject? joinSource, Canvas canvas,
                                  Color blue, Color darkBlue, Color orange)
         {
             // Always build from scratch — use game's button sprite if available,
