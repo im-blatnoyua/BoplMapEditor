@@ -131,6 +131,29 @@ namespace BoplMapEditor.UI
             for (int i = 0; i < 6; i++) { _platformMaterials[i] = null; _platformSprites[i] = null; }
         }
 
+        // ── Game UI button sprite (from CharacterSelectBox.joinColor Image) ──
+        private static Sprite? _gameButtonSprite;
+
+        public static Sprite? GetGameButtonSprite()
+        {
+            if (_gameButtonSprite != null) return _gameButtonSprite;
+
+            // Scan all sliced Images in the scene — game's rounded button sprite
+            var images = Object.FindObjectsOfType<Image>(true);
+            foreach (var img in images)
+            {
+                if (img.sprite != null && img.type == Image.Type.Sliced)
+                {
+                    _gameButtonSprite = img.sprite;
+                    Plugin.Log.LogInfo($"[StyleHelper] Found game button sprite: {img.sprite.name} on {img.gameObject.name}");
+                    return _gameButtonSprite;
+                }
+            }
+            return null;
+        }
+
+        public static void InvalidateButtonSpriteCache() => _gameButtonSprite = null;
+
         // ── Platform display colors (fallback when material not found) ────
         public static readonly Color[] PlatformColors = {
             new Color(0.25f, 0.62f, 0.18f, 1f),  // grass

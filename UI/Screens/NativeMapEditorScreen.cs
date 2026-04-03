@@ -71,10 +71,11 @@ namespace BoplMapEditor.UI
             rt.anchorMax = Vector2.one;
             rt.offsetMin = rt.offsetMax = Vector2.zero;
 
-            // Opaque root background — covers the lobby completely when open
+            // Transparent root — game scene cameras show through the viewport area.
+            // TopBar and Palette have their own opaque backgrounds.
             var rootBg = go.AddComponent<Image>();
-            rootBg.color        = new Color(0.42f, 0.68f, 0.95f, 1f); // sky blue base
-            rootBg.raycastTarget = true;
+            rootBg.color         = Color.clear;
+            rootBg.raycastTarget = true; // still catches input so lobby isn't clickable
 
             var s       = go.AddComponent<NativeMapEditorScreen>();
             s._ctrl     = ctrl;
@@ -94,6 +95,11 @@ namespace BoplMapEditor.UI
             _ctrl.Open(map);
             if (_mapNameLabel != null)
                 _mapNameLabel.text = map.Name.ToUpper();
+
+            // Load a real game level scene — its cameras render sky/water/terrain
+            // through the transparent viewport area
+            BoplMapEditor.Util.BackgroundSceneLoader.Load(map.LevelTheme);
+
             StyleHelper.ScanPlatformAssets();
             RefreshPalette();
             gameObject.SetActive(true);
@@ -102,6 +108,7 @@ namespace BoplMapEditor.UI
         public void Close()
         {
             _ctrl.Close();
+            BoplMapEditor.Util.BackgroundSceneLoader.Unload();
             gameObject.SetActive(false);
             _browser.gameObject.SetActive(true);
             _browser.Refresh();
@@ -192,6 +199,8 @@ namespace BoplMapEditor.UI
 
         void BuildViewport(RectTransform root)
         {
+            // Transparent hole in the UI — game cameras render the real level
+            // (sky, water, platforms) through this area via BackgroundSceneLoader
             var go = new GameObject("Viewport");
             go.transform.SetParent(root, false);
             var rt = go.AddComponent<RectTransform>();
@@ -200,80 +209,10 @@ namespace BoplMapEditor.UI
             rt.offsetMin = new Vector2(0f, PALETTE_H);
             rt.offsetMax = new Vector2(0f, -TOP_H);
 
-            // alpha must be > 0 for Mask stencil to work — showMaskGraphic hides it visually
-            go.AddComponent<Image>().color = Color.white;
-            go.AddComponent<Mask>().showMaskGraphic = false;
-
-            // Sky base layer (SkyBottom color fills sky area)
-            Add(go.transform, "SkyBase", SkyBottom,
-                new Vector2(0f, WATER_FRAC), Vector2.one);
-
-            // Sky top gradient overlay (SkyTop color with alpha, covers upper portion)
-            Add(go.transform, "SkyTopTint", new Color(SkyTop.r, SkyTop.g, SkyTop.b, 0.72f),
-                new Vector2(0f, WATER_FRAC + 0.30f), Vector2.one);
-
-            // Water body
-            Add(go.transform, "Water", WaterDeep,
-                Vector2.zero, new Vector2(1f, WATER_FRAC));
-
-            // Water surface stripe (lighter, height = 1.5% of viewport)
-            Add(go.transform, "WaterSurf", WaterSurf,
-                new Vector2(0f, WATER_FRAC - 0.015f),
-                new Vector2(1f, WATER_FRAC));
-
-            // Animated wave strips
-            go.AddComponent<WaterShimmer>().Init(WATER_FRAC);
-
-            // Clouds — white ellipses scattered in the sky area
-            BuildClouds(go.transform);
-
-            // "DRAG ISLANDS HERE" hint text
-            var hintGo = new GameObject("Hint");
-            hintGo.transform.SetParent(go.transform, false);
-            var hintTmp = hintGo.AddComponent<TextMeshProUGUI>();
-            ApplyFont(hintTmp, 18f, false);
-            hintTmp.text          = "DRAG ISLANDS HERE";
-            hintTmp.color         = new Color(1f, 1f, 1f, 0.20f);
-            hintTmp.alignment     = TextAlignmentOptions.Center;
-            hintTmp.raycastTarget = false;
-            var hrt = hintGo.GetComponent<RectTransform>();
-            hrt.anchorMin = new Vector2(0.15f, WATER_FRAC + 0.08f);
-            hrt.anchorMax = new Vector2(0.85f, WATER_FRAC + 0.24f);
-            hrt.offsetMin = hrt.offsetMax = Vector2.zero;
-        }
-
-        void BuildClouds(Transform parent)
-        {
-            // Cloud definitions: (anchorX, anchorY, width, height)
-            // anchorY is within the sky portion (WATER_FRAC .. 1.0)
-            var clouds = new (float ax, float ay, float w, float h)[]
-            {
-                (0.12f, 0.82f, 150f, 48f),
-                (0.38f, 0.74f,  95f, 32f),
-                (0.62f, 0.88f, 130f, 44f),
-                (0.82f, 0.70f,  80f, 30f),
-            };
-
-            var cloudColor = new Color(0.88f, 0.92f, 1.0f, 0.60f);
-
-            for (int i = 0; i < clouds.Length; i++)
-            {
-                var c = clouds[i];
-                var cloudGo = new GameObject("Cloud" + i);
-                cloudGo.transform.SetParent(parent, false);
-                var img = cloudGo.AddComponent<Image>();
-                img.sprite        = StyleHelper.MakeRoundedSprite();
-                img.type          = Image.Type.Sliced;
-                img.color         = cloudColor;
-                img.raycastTarget = false;
-
-                var crt = cloudGo.GetComponent<RectTransform>();
-                crt.anchorMin        = new Vector2(c.ax, c.ay);
-                crt.anchorMax        = new Vector2(c.ax, c.ay);
-                crt.pivot            = new Vector2(0.5f, 0.5f);
-                crt.sizeDelta        = new Vector2(c.w, c.h);
-                crt.anchoredPosition = Vector2.zero;
-            }
+            // Fully transparent — shows the game scene cameras behind
+            var img = go.AddComponent<Image>();
+            img.color        = Color.clear;
+            img.raycastTarget = false;
         }
 
         // ── Palette (horizontal scroll) ───────────────────────────────────

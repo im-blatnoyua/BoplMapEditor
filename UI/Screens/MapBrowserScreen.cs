@@ -23,7 +23,7 @@ namespace BoplMapEditor.UI
         static readonly Color DangerRed     = new Color(0.80f, 0.18f, 0.18f, 1f);
         static readonly Color White         = Color.white;
 
-        const float SIDEBAR_W = 220f;
+        const float TOP_BAR_H = 80f;
 
         // ── References ────────────────────────────────────────────────────
         private RectTransform         _root         = null!;
@@ -80,30 +80,65 @@ namespace BoplMapEditor.UI
 
         void BuildUI()
         {
-            // Deep dark navy background
-            var bgImg = _root.gameObject.AddComponent<Image>();
-            bgImg.color = BgDeep;
+            // Sky-blue full background
+            _root.gameObject.AddComponent<Image>().color = BgDeep;
 
-            // Diagonal stripe overlay (decorative texture)
-            BuildStripes(_root);
+            // ── Top bar ───────────────────────────────────────────────────
+            var topGo = new GameObject("TopBar");
+            topGo.transform.SetParent(_root, false);
+            topGo.AddComponent<Image>().color = new Color(0.20f, 0.42f, 0.75f, 1f);
+            var trt = topGo.GetComponent<RectTransform>();
+            trt.anchorMin = new Vector2(0f, 1f); trt.anchorMax = Vector2.one;
+            trt.offsetMin = new Vector2(0f, -TOP_BAR_H); trt.offsetMax = Vector2.zero;
 
-            // Root horizontal split: sidebar | content
-            var splitGo = new GameObject("Split");
-            splitGo.transform.SetParent(_root, false);
-            var splitRt = splitGo.AddComponent<RectTransform>();
-            splitRt.anchorMin = Vector2.zero;
-            splitRt.anchorMax = Vector2.one;
-            splitRt.offsetMin = Vector2.zero;
-            splitRt.offsetMax = Vector2.zero;
+            var thlg = topGo.AddComponent<HorizontalLayoutGroup>();
+            thlg.padding               = new RectOffset(24, 16, 0, 0);
+            thlg.spacing               = 14;
+            thlg.childAlignment         = TextAnchor.MiddleLeft;
+            thlg.childForceExpandHeight = true;
+            thlg.childForceExpandWidth  = false;
 
-            var hlg = splitGo.AddComponent<HorizontalLayoutGroup>();
-            hlg.spacing               = 0;
-            hlg.padding               = new RectOffset(0, 0, 0, 0);
-            hlg.childForceExpandWidth  = false;
-            hlg.childForceExpandHeight = true;
+            // Title
+            var titleGo = new GameObject("Title");
+            titleGo.transform.SetParent(topGo.transform, false);
+            var titleTmp = titleGo.AddComponent<TextMeshProUGUI>();
+            ApplyGameFont(titleTmp, 30f, true);
+            titleTmp.text = "MAP EDITOR";
+            titleTmp.color = White;
+            titleTmp.fontStyle = FontStyles.Bold | FontStyles.UpperCase;
+            titleTmp.raycastTarget = false;
+            titleGo.AddComponent<LayoutElement>().flexibleWidth = 1;
 
-            BuildSidebar(splitGo.transform);
-            BuildContentArea(splitGo.transform);
+            // Map count label
+            var countGo = new GameObject("Count");
+            countGo.transform.SetParent(topGo.transform, false);
+            _countLabel = countGo.AddComponent<TextMeshProUGUI>();
+            ApplyGameFont(_countLabel, 14f, false);
+            _countLabel.color = TextMuted;
+            _countLabel.alignment = TextAlignmentOptions.Right;
+            _countLabel.raycastTarget = false;
+            countGo.AddComponent<LayoutElement>().minWidth = 80f;
+
+            // + NEW MAP button
+            var newBtn = MakeButton(topGo.transform, "+ NEW MAP", _orange, 150f, 54f);
+            newBtn.onClick.AddListener(OnNewMap);
+
+            // BACK button
+            var backBtn = MakeButton(topGo.transform, "\u2190 BACK", _darkBlue, 100f, 54f);
+            backBtn.onClick.AddListener(Close);
+
+            // Orange bottom accent on topbar
+            var acc = new GameObject("Accent");
+            acc.transform.SetParent(topGo.transform, false);
+            acc.AddComponent<Image>().color = _orange;
+            acc.GetComponent<Image>().raycastTarget = false;
+            var art = acc.GetComponent<RectTransform>();
+            art.anchorMin = new Vector2(0f, 0f); art.anchorMax = new Vector2(1f, 0f);
+            art.pivot = new Vector2(0.5f, 1f);
+            art.offsetMin = new Vector2(0f, 0f); art.offsetMax = new Vector2(0f, 2f);
+
+            // ── Scrollable map list (fills rest of screen) ────────────────
+            BuildScrollArea(_root);
         }
 
         // ── Diagonal stripe overlay ───────────────────────────────────────
@@ -146,8 +181,8 @@ namespace BoplMapEditor.UI
             img.color = SidebarBg;
 
             var le = sGo.AddComponent<LayoutElement>();
-            le.minWidth      = SIDEBAR_W;
-            le.preferredWidth = SIDEBAR_W;
+            le.minWidth      = 220f;
+            le.preferredWidth = 220f;
             le.flexibleWidth = 0;
 
             // Orange accent line along the right edge of the sidebar
@@ -353,9 +388,20 @@ namespace BoplMapEditor.UI
             var scrollGo = new GameObject("Scroll");
             scrollGo.transform.SetParent(parent, false);
 
-            var scrollLe = scrollGo.AddComponent<LayoutElement>();
-            scrollLe.flexibleHeight = 1;
-            scrollLe.flexibleWidth  = 1;
+            // When parent is _root (new layout), anchor below top bar
+            bool isRoot = parent == (Transform)_root;
+            if (isRoot)
+            {
+                var srt = scrollGo.AddComponent<RectTransform>();
+                srt.anchorMin = Vector2.zero; srt.anchorMax = Vector2.one;
+                srt.offsetMin = Vector2.zero; srt.offsetMax = new Vector2(0f, -TOP_BAR_H);
+            }
+            else
+            {
+                var scrollLe = scrollGo.AddComponent<LayoutElement>();
+                scrollLe.flexibleHeight = 1;
+                scrollLe.flexibleWidth  = 1;
+            }
 
             // ScrollRect needs a background Image to receive pointer events
             scrollGo.AddComponent<Image>().color = Color.clear;
@@ -373,7 +419,7 @@ namespace BoplMapEditor.UI
             vpRt.anchorMin = Vector2.zero;
             vpRt.anchorMax = Vector2.one;
             vpRt.offsetMin = vpRt.offsetMax = Vector2.zero;
-            vpGo.AddComponent<Image>().color = Color.clear;
+            vpGo.AddComponent<Image>().color = Color.white;
             vpGo.AddComponent<Mask>().showMaskGraphic = false;
             scroll.viewport = vpRt;
 

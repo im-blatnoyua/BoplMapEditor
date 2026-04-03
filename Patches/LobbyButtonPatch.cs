@@ -15,14 +15,14 @@ namespace BoplMapEditor.Patches
         {
             Plugin.Log.LogInfo("[LobbyButtonPatch] CharacterSelectHandler.Start postfix fired");
 
-            var startButton = LobbyButtonHelper.GetFieldRef<AnimateInOutUI>(__instance, "startButton");
-            Plugin.Log.LogInfo($"[LobbyButtonPatch] startButton = {(startButton == null ? "NULL" : startButton.name)}");
+            // joinColor is the "CLICK TO JOIN!" button — always visible, game-styled
+            var joinSource = LobbyButtonHelper.GetFieldRef<RectTransform>(__instance.characterSelectBoxes[0], "joinColor");
 
             Color blue     = LobbyButtonHelper.GetField<Color>(__instance, "blue")     ?? new Color(0.20f, 0.42f, 0.80f, 1f);
             Color darkBlue = LobbyButtonHelper.GetField<Color>(__instance, "darkBlue") ?? new Color(0.10f, 0.22f, 0.50f, 1f);
             Color orange   = LobbyButtonHelper.GetField<Color>(__instance, "orange")   ?? new Color(0.95f, 0.55f, 0.10f, 1f);
 
-            LobbyButtonHelper.Inject(startButton, __instance.gameObject, blue, darkBlue, orange);
+            LobbyButtonHelper.Inject(joinSource?.gameObject, __instance.gameObject, blue, darkBlue, orange);
         }
     }
 
@@ -33,14 +33,11 @@ namespace BoplMapEditor.Patches
         {
             Plugin.Log.LogInfo("[LobbyButtonPatch] CharacterSelectHandler_online.Start postfix fired");
 
-            var startButton = LobbyButtonHelper.GetFieldRef<AnimateInOutUI>(__instance, "startButton");
-            Plugin.Log.LogInfo($"[LobbyButtonPatch] online startButton = {(startButton == null ? "NULL" : startButton.name)}");
-
             Color blue     = LobbyButtonHelper.GetField<Color>(__instance, "blue")     ?? new Color(0.20f, 0.42f, 0.80f, 1f);
             Color darkBlue = LobbyButtonHelper.GetField<Color>(__instance, "darkBlue") ?? new Color(0.10f, 0.22f, 0.50f, 1f);
             Color orange   = LobbyButtonHelper.GetField<Color>(__instance, "orange")   ?? new Color(0.95f, 0.55f, 0.10f, 1f);
 
-            LobbyButtonHelper.Inject(startButton, __instance.gameObject, blue, darkBlue, orange);
+            LobbyButtonHelper.Inject(null, __instance.gameObject, blue, darkBlue, orange);
         }
     }
 
@@ -50,13 +47,13 @@ namespace BoplMapEditor.Patches
 
         // ── Step 1: clone the button (critical — must always succeed) ─────
 
-        public static void Inject(AnimateInOutUI? startButton, GameObject lobbyRoot,
+        public static void Inject(GameObject? joinSource, GameObject lobbyRoot,
                                   Color blue, Color darkBlue, Color orange)
         {
             // ── Find canvas ───────────────────────────────────────────────
             Canvas? canvas = null;
-            if (startButton != null)
-                canvas = startButton.GetComponentInParent<Canvas>();
+            if (joinSource != null)
+                canvas = joinSource.GetComponentInParent<Canvas>();
             if (canvas == null)
                 canvas = lobbyRoot.GetComponentInParent<Canvas>()
                       ?? Object.FindObjectOfType<Canvas>();
@@ -76,7 +73,7 @@ namespace BoplMapEditor.Patches
             }
 
             // ── Clone button ──────────────────────────────────────────────
-            try { CreateButton(startButton, canvas, blue, darkBlue, orange); }
+            try { CreateButton(joinSource, canvas, blue, darkBlue, orange); }
             catch (System.Exception ex)
             { Plugin.Log.LogError($"[LobbyButtonPatch] CreateButton failed: {ex}"); }
 
@@ -86,40 +83,42 @@ namespace BoplMapEditor.Patches
             { Plugin.Log.LogError($"[LobbyButtonPatch] CreateScreens failed: {ex}"); }
         }
 
-        static void CreateButton(AnimateInOutUI? startButton, Canvas canvas,
+        static void CreateButton(GameObject? joinSource, Canvas canvas,
                                  Color blue, Color darkBlue, Color orange)
         {
             GameObject btnGo;
 
-            if (startButton != null)
+            if (joinSource != null)
             {
-                // Clone the game's button visuals
-                btnGo = Object.Instantiate(startButton.gameObject, canvas.transform, false);
+                // Clone joinColor — the "CLICK TO JOIN!" button, always visible + game-styled
+                btnGo = Object.Instantiate(joinSource, canvas.transform, false);
                 btnGo.name = TAG;
 
-                // Remove AnimateInOutUI — it saves y=1000 as origin (button wasn't
-                // visible yet when we cloned), so animation never works correctly.
-                foreach (var a in btnGo.GetComponents<AnimateInOutUI>())
-                    Object.Destroy(a);
-
-                // Remove game's EventTriggers (they call ClickStartButton on original)
+                // Remove any game-logic components
+                foreach (var comp in btnGo.GetComponentsInChildren<MonoBehaviour>(true))
+                {
+                    var t = comp.GetType().Name;
+                    if (t != "Image" && t != "Button" && t != "TextMeshProUGUI"
+                        && t != "RectTransform" && t != "CanvasRenderer")
+                        Object.Destroy(comp);
+                }
                 foreach (var et in btnGo.GetComponentsInChildren<EventTrigger>(true))
                     Object.Destroy(et);
 
-                // Change all text labels to "Map Editor"
+                // Set label text
                 foreach (var tmp in btnGo.GetComponentsInChildren<TextMeshProUGUI>(true))
                 {
-                    tmp.text = "Map Editor";
+                    tmp.text = "MAP EDITOR";
                     Plugin.Log.LogInfo($"[LobbyButtonPatch] Label set: {tmp.gameObject.name}");
                 }
 
-                Plugin.Log.LogInfo("[LobbyButtonPatch] Cloned startButton.");
+                Plugin.Log.LogInfo("[LobbyButtonPatch] Cloned joinColor button.");
             }
             else
             {
-                // Fallback: build a simple button from scratch
+                // Fallback: build from scratch using game button sprite if available
                 btnGo = BuildFallbackButton(canvas.transform, blue);
-                Plugin.Log.LogInfo("[LobbyButtonPatch] Using fallback button (startButton was null).");
+                Plugin.Log.LogInfo("[LobbyButtonPatch] Using fallback button.");
             }
 
             // ── Position: anchor to bottom-left, always visible ───────────
