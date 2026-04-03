@@ -36,7 +36,6 @@ namespace BoplMapEditor.UI
         MapEditorController _ctrl    = null!;
         MapBrowserScreen    _browser = null!;
         Color _blue, _darkBlue, _orange;
-        RawImage? _viewportImage;
         bool _inDedicatedScene;
 
         // Top bar
@@ -127,8 +126,6 @@ namespace BoplMapEditor.UI
         public void Close()
         {
             _ctrl.Close();
-            if (_viewportImage != null) _viewportImage.texture = null;
-
             if (_inDedicatedScene)
                 EditorSceneManager.Close(); // loads CharacterSelect
             else
@@ -235,22 +232,11 @@ namespace BoplMapEditor.UI
             rt.offsetMin = new Vector2(0f, PALETTE_H);
             rt.offsetMax = new Vector2(0f, -TOP_H);
 
-            // RawImage displays the RenderTexture from BackgroundSceneLoader.
-            // Works in any canvas render mode — no camera depth fighting.
-            _viewportImage = go.AddComponent<RawImage>();
-            _viewportImage.color = Color.white;
-            // Texture assigned in Update() once scene finishes loading
-        }
-
-        void Update()
-        {
-            // Assign RenderTexture as soon as BackgroundSceneLoader has it ready
-            if (_viewportImage != null && _viewportImage.texture == null
-                && BoplMapEditor.Util.BackgroundSceneLoader.ActiveTexture != null)
-            {
-                _viewportImage.texture = BoplMapEditor.Util.BackgroundSceneLoader.ActiveTexture;
-                Plugin.Log.LogInfo("[NativeEditor] RenderTexture assigned to viewport.");
-            }
+            // Transparent — Level1 cameras (depth=1) render below this
+            // ScreenSpaceOverlay canvas and show through transparent pixels
+            var img = go.AddComponent<Image>();
+            img.color        = Color.clear;
+            img.raycastTarget = false;
         }
 
         // ── Palette (horizontal scroll) ───────────────────────────────────
