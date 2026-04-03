@@ -357,8 +357,11 @@ namespace BoplMapEditor.UI
                         float capHW = shape.HalfW, capHH = shape.HalfH;
                         var entry = new StyleHelper.PlatformEntry
                         {
+                            // If no real sprite for this material type, use base sprite
+                            // but mark Color so BuildIslandCard tints it correctly
                             Sprite       = matSprite ?? shape.Sprite,
-                            Color        = matColor,
+                            // hasSpriteForType = false means tint the sprite with matColor
+                            Color        = matSprite != null ? Color.white : matColor,
                             HalfW        = capHW,
                             HalfH        = capHH,
                             MaterialType = mat,
@@ -436,7 +439,9 @@ namespace BoplMapEditor.UI
             {
                 islandImg.sprite = entry.Sprite;
                 islandImg.type   = Image.Type.Sliced;
-                islandImg.color  = Color.white;
+                // Color.white = real sprite shown naturally
+                // any other color = tint fallback sprite to show material type
+                islandImg.color = entry.Color;
             }
             else
             {
