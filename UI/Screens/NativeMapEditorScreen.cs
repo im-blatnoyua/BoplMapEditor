@@ -9,28 +9,28 @@ namespace BoplMapEditor.UI
 {
     // Native map editor screen — lives inside the game's own Canvas.
     // Layout:
-    //   Top bar (60px)     — Back | MapName | Save | Undo | Redo | Grid
-    //   Scene viewport     — sky gradient + water strip (SceneBounds proportions)
-    //   Bottom palette     — horizontal scroll strip with every island found in game
+    //   Top bar (72px)    — Back | MapName | Save | Undo | Redo | Grid
+    //   Scene viewport    — sky gradient + clouds + water strip (SceneBounds proportions)
+    //   Bottom palette    — horizontal scroll strip (130px) with island cards
     public class NativeMapEditorScreen : MonoBehaviour
     {
         // SceneBounds: YMin=-26, YMax=40, waterHeight=-11.3
         // water % from bottom = (−11.3 − (−26)) / 66 ≈ 0.223
         const float WATER_FRAC = 0.223f;
-        const float TOP_H      = 60f;
-        const float PALETTE_H  = 120f;
-        const float ITEM_W     = 96f;
-        const float ITEM_H     = 96f;
+        const float TOP_H      = 72f;
+        const float PALETTE_H  = 130f;
+        const float ITEM_W     = 110f;
 
-        static readonly Color SkyTop    = new Color(0.38f, 0.62f, 0.90f, 1f);
-        static readonly Color SkyMid    = new Color(0.55f, 0.78f, 0.97f, 1f);
-        static readonly Color WaterDeep = new Color(0.05f, 0.22f, 0.58f, 1f);
-        static readonly Color WaterSurf = new Color(0.14f, 0.45f, 0.82f, 1f);
-        static readonly Color TopBarBg  = new Color(0.10f, 0.15f, 0.26f, 0.97f);
-        static readonly Color PalBg     = new Color(0.07f, 0.11f, 0.20f, 0.97f);
-        static readonly Color ItemNorm  = new Color(0.15f, 0.22f, 0.38f, 1f);
-        static readonly Color ItemSel   = new Color(0.90f, 0.90f, 1.00f, 1f);
-        static readonly Color White     = Color.white;
+        static readonly Color SkyBottom  = new Color(0.42f, 0.68f, 0.95f, 1f);
+        static readonly Color SkyTop     = new Color(0.22f, 0.45f, 0.78f, 1f);
+        static readonly Color WaterDeep  = new Color(0.04f, 0.18f, 0.52f, 1f);
+        static readonly Color WaterSurf  = new Color(0.12f, 0.38f, 0.72f, 1f);
+        static readonly Color TopBarBg   = new Color(0.08f, 0.12f, 0.22f, 1f);
+        static readonly Color PalBg      = new Color(0.06f, 0.09f, 0.18f, 1f);
+        static readonly Color ItemNorm   = new Color(0.13f, 0.20f, 0.35f, 1f);
+        static readonly Color ItemSel    = new Color(0.88f, 0.88f, 1.00f, 1f);
+        static readonly Color OrangeAcc  = new Color(1.00f, 0.55f, 0.10f, 1f);
+        static readonly Color White      = Color.white;
 
         // ── References ────────────────────────────────────────────────────
         MapEditorController _ctrl    = null!;
@@ -71,12 +71,12 @@ namespace BoplMapEditor.UI
             rt.anchorMax = Vector2.one;
             rt.offsetMin = rt.offsetMax = Vector2.zero;
 
-            var s        = go.AddComponent<NativeMapEditorScreen>();
-            s._ctrl      = ctrl;
-            s._browser   = browser;
-            s._blue      = blue;
-            s._darkBlue  = darkBlue;
-            s._orange    = orange;
+            var s       = go.AddComponent<NativeMapEditorScreen>();
+            s._ctrl     = ctrl;
+            s._browser  = browser;
+            s._blue     = blue;
+            s._darkBlue = darkBlue;
+            s._orange   = orange;
             s.BuildUI(rt);
             go.SetActive(false);
             return s;
@@ -119,49 +119,68 @@ namespace BoplMapEditor.UI
             go.transform.SetParent(root, false);
             go.AddComponent<Image>().color = TopBarBg;
             var rt = go.GetComponent<RectTransform>();
-            rt.anchorMin = new Vector2(0f, 1f); rt.anchorMax = Vector2.one;
-            rt.offsetMin = new Vector2(0f, -TOP_H); rt.offsetMax = Vector2.zero;
+            rt.anchorMin = new Vector2(0f, 1f);
+            rt.anchorMax = Vector2.one;
+            rt.offsetMin = new Vector2(0f, -TOP_H);
+            rt.offsetMax = Vector2.zero;
 
             var hlg = go.AddComponent<HorizontalLayoutGroup>();
-            hlg.padding               = new RectOffset(12, 12, 0, 0);
-            hlg.spacing               = 8;
-            hlg.childAlignment         = TextAnchor.MiddleLeft;
+            hlg.padding               = new RectOffset(10, 10, 10, 10);
+            hlg.spacing               = 6;
+            hlg.childAlignment        = TextAnchor.MiddleLeft;
             hlg.childForceExpandHeight = true;
             hlg.childForceExpandWidth  = false;
 
-            var backBtn = TopBtn(go.transform, "< Back", new Color(0.60f, 0.15f, 0.15f, 1f), 80f);
+            // ← BACK
+            var backBtn = TopBtn(go.transform, "\u2190 BACK", new Color(0.70f, 0.15f, 0.15f, 1f), 100f, 52f);
             backBtn.onClick.AddListener(Close);
 
-            Div(go.transform);
-
+            // Map name label (fills remaining space)
             var nameGo = new GameObject("Name");
             nameGo.transform.SetParent(go.transform, false);
             _mapNameLabel = nameGo.AddComponent<TextMeshProUGUI>();
-            ApplyFont(_mapNameLabel, 20f, true);
-            _mapNameLabel.text      = "Untitled";
+            ApplyFont(_mapNameLabel, 22f, true);
+            _mapNameLabel.text      = "UNTITLED";
             _mapNameLabel.alignment = TextAlignmentOptions.Left;
-            nameGo.AddComponent<LayoutElement>().flexibleWidth = 1;
+            var nameLe = nameGo.AddComponent<LayoutElement>();
+            nameLe.flexibleWidth = 1;
 
-            Div(go.transform);
-
-            var save = TopBtn(go.transform, "Save", _orange, 70f);
-            save.onClick.AddListener(() => {
+            // SAVE
+            var save = TopBtn(go.transform, "SAVE", OrangeAcc, 90f, 52f);
+            save.onClick.AddListener(() =>
+            {
                 MapSerializer.SaveMap(_ctrl.CurrentMap, _ctrl.CurrentMap.Name);
             });
 
-            var undo = TopBtn(go.transform, "Undo", _blue, 65f);
+            // UNDO / REDO
+            var undo = TopBtn(go.transform, "UNDO", _blue, 80f, 52f);
             undo.onClick.AddListener(() => _ctrl.History.Undo());
 
-            var redo = TopBtn(go.transform, "Redo", _blue, 65f);
+            var redo = TopBtn(go.transform, "REDO", _blue, 80f, 52f);
             redo.onClick.AddListener(() => _ctrl.History.Redo());
 
-            var grid = TopBtn(go.transform, "Grid ON", new Color(0.20f, 0.42f, 0.22f, 1f), 84f);
+            // GRID ON/OFF
+            var grid = TopBtn(go.transform, "GRID ON", new Color(0.18f, 0.45f, 0.20f, 1f), 100f, 52f);
             _gridLabel = grid.GetComponentInChildren<TextMeshProUGUI>();
-            grid.onClick.AddListener(() => {
+            grid.onClick.AddListener(() =>
+            {
                 _ctrl.SnapToGrid = !_ctrl.SnapToGrid;
                 if (_gridLabel != null)
-                    _gridLabel.text = _ctrl.SnapToGrid ? "Grid ON" : "Grid OFF";
+                    _gridLabel.text = _ctrl.SnapToGrid ? "GRID ON" : "GRID OFF";
             });
+
+            // 2px orange accent line along the bottom edge of the top bar
+            var accent = new GameObject("BottomAccent");
+            accent.transform.SetParent(go.transform, false);
+            var accentImg = accent.AddComponent<Image>();
+            accentImg.color        = OrangeAcc;
+            accentImg.raycastTarget = false;
+            var art = accent.GetComponent<RectTransform>();
+            art.anchorMin = new Vector2(0f, 0f);
+            art.anchorMax = new Vector2(1f, 0f);
+            art.pivot     = new Vector2(0.5f, 0f);
+            art.offsetMin = new Vector2(0f, 0f);
+            art.offsetMax = new Vector2(0f, 2f);
         }
 
         // ── Viewport ──────────────────────────────────────────────────────
@@ -171,87 +190,154 @@ namespace BoplMapEditor.UI
             var go = new GameObject("Viewport");
             go.transform.SetParent(root, false);
             var rt = go.AddComponent<RectTransform>();
-            rt.anchorMin = Vector2.zero; rt.anchorMax = Vector2.one;
+            rt.anchorMin = Vector2.zero;
+            rt.anchorMax = Vector2.one;
             rt.offsetMin = new Vector2(0f, PALETTE_H);
             rt.offsetMax = new Vector2(0f, -TOP_H);
 
             go.AddComponent<Image>().color = Color.clear;
             go.AddComponent<Mask>().showMaskGraphic = false;
 
-            // Sky
-            Add(go.transform, "Sky", SkyMid,
+            // Sky base layer (SkyBottom color fills sky area)
+            Add(go.transform, "SkyBase", SkyBottom,
                 new Vector2(0f, WATER_FRAC), Vector2.one);
-            // Sky top tint
-            var skytop = Add(go.transform, "SkyTop",
-                new Color(SkyTop.r, SkyTop.g, SkyTop.b, 0.5f),
-                new Vector2(0f, WATER_FRAC + 0.38f), Vector2.one);
+
+            // Sky top gradient overlay (SkyTop color with alpha, covers upper portion)
+            Add(go.transform, "SkyTopTint", new Color(SkyTop.r, SkyTop.g, SkyTop.b, 0.72f),
+                new Vector2(0f, WATER_FRAC + 0.30f), Vector2.one);
 
             // Water body
             Add(go.transform, "Water", WaterDeep,
                 Vector2.zero, new Vector2(1f, WATER_FRAC));
-            // Water surface shimmer line
+
+            // Water surface stripe (lighter, height = 1.5% of viewport)
             Add(go.transform, "WaterSurf", WaterSurf,
-                new Vector2(0f, WATER_FRAC - 0.016f),
-                new Vector2(1f, WATER_FRAC + 0.010f));
+                new Vector2(0f, WATER_FRAC - 0.015f),
+                new Vector2(1f, WATER_FRAC));
 
             // Animated wave strips
             go.AddComponent<WaterShimmer>().Init(WATER_FRAC);
 
-            // Placeholder hint
+            // Clouds — white ellipses scattered in the sky area
+            BuildClouds(go.transform);
+
+            // "DRAG ISLANDS HERE" hint text
             var hintGo = new GameObject("Hint");
             hintGo.transform.SetParent(go.transform, false);
             var hintTmp = hintGo.AddComponent<TextMeshProUGUI>();
-            ApplyFont(hintTmp, 15f, false);
-            hintTmp.text      = "Drag islands here to build your map";
-            hintTmp.color     = new Color(1f, 1f, 1f, 0.18f);
-            hintTmp.alignment = TextAlignmentOptions.Center;
+            ApplyFont(hintTmp, 18f, false);
+            hintTmp.text          = "DRAG ISLANDS HERE";
+            hintTmp.color         = new Color(1f, 1f, 1f, 0.20f);
+            hintTmp.alignment     = TextAlignmentOptions.Center;
             hintTmp.raycastTarget = false;
             var hrt = hintGo.GetComponent<RectTransform>();
             hrt.anchorMin = new Vector2(0.15f, WATER_FRAC + 0.08f);
-            hrt.anchorMax = new Vector2(0.85f, WATER_FRAC + 0.22f);
+            hrt.anchorMax = new Vector2(0.85f, WATER_FRAC + 0.24f);
             hrt.offsetMin = hrt.offsetMax = Vector2.zero;
+        }
+
+        void BuildClouds(Transform parent)
+        {
+            // Cloud definitions: (anchorX, anchorY, width, height)
+            // anchorY is within the sky portion (WATER_FRAC .. 1.0)
+            var clouds = new (float ax, float ay, float w, float h)[]
+            {
+                (0.12f, 0.82f, 150f, 48f),
+                (0.38f, 0.74f,  95f, 32f),
+                (0.62f, 0.88f, 130f, 44f),
+                (0.82f, 0.70f,  80f, 30f),
+            };
+
+            var cloudColor = new Color(0.88f, 0.92f, 1.0f, 0.60f);
+
+            for (int i = 0; i < clouds.Length; i++)
+            {
+                var c = clouds[i];
+                var cloudGo = new GameObject("Cloud" + i);
+                cloudGo.transform.SetParent(parent, false);
+                var img = cloudGo.AddComponent<Image>();
+                img.sprite        = StyleHelper.MakeRoundedSprite();
+                img.type          = Image.Type.Sliced;
+                img.color         = cloudColor;
+                img.raycastTarget = false;
+
+                var crt = cloudGo.GetComponent<RectTransform>();
+                crt.anchorMin        = new Vector2(c.ax, c.ay);
+                crt.anchorMax        = new Vector2(c.ax, c.ay);
+                crt.pivot            = new Vector2(0.5f, 0.5f);
+                crt.sizeDelta        = new Vector2(c.w, c.h);
+                crt.anchoredPosition = Vector2.zero;
+            }
         }
 
         // ── Palette (horizontal scroll) ───────────────────────────────────
 
         void BuildPalette(RectTransform root)
         {
-            // Container
             var palGo = new GameObject("Palette");
             palGo.transform.SetParent(root, false);
             palGo.AddComponent<Image>().color = PalBg;
             var palRt = palGo.GetComponent<RectTransform>();
-            palRt.anchorMin = Vector2.zero; palRt.anchorMax = new Vector2(1f, 0f);
-            palRt.offsetMin = Vector2.zero; palRt.offsetMax = new Vector2(0f, PALETTE_H);
+            palRt.anchorMin = Vector2.zero;
+            palRt.anchorMax = new Vector2(1f, 0f);
+            palRt.offsetMin = Vector2.zero;
+            palRt.offsetMax = new Vector2(0f, PALETTE_H);
 
-            // Separator line on top
-            var sep = new GameObject("Sep");
-            sep.transform.SetParent(palGo.transform, false);
-            sep.AddComponent<Image>().color = new Color(0f, 0f, 0f, 0.35f);
-            var srt = sep.GetComponent<RectTransform>();
-            srt.anchorMin = new Vector2(0f, 1f); srt.anchorMax = Vector2.one;
-            srt.offsetMin = new Vector2(0f, -1f); srt.offsetMax = Vector2.zero;
+            // 2px orange accent line at top of palette
+            var topAccent = new GameObject("TopAccent");
+            topAccent.transform.SetParent(palGo.transform, false);
+            var taImg = topAccent.AddComponent<Image>();
+            taImg.color        = OrangeAcc;
+            taImg.raycastTarget = false;
+            var tart = topAccent.GetComponent<RectTransform>();
+            tart.anchorMin = new Vector2(0f, 1f);
+            tart.anchorMax = Vector2.one;
+            tart.offsetMin = new Vector2(0f, -2f);
+            tart.offsetMax = Vector2.zero;
 
-            // ScrollRect
+            // "ISLANDS" label strip (20px tall, left-aligned, muted white)
+            var labelStrip = new GameObject("LabelStrip");
+            labelStrip.transform.SetParent(palGo.transform, false);
+            var labelStripRt = labelStrip.AddComponent<RectTransform>();
+            labelStripRt.anchorMin = new Vector2(0f, 1f);
+            labelStripRt.anchorMax = Vector2.one;
+            labelStripRt.offsetMin = new Vector2(0f, -22f);
+            labelStripRt.offsetMax = Vector2.zero;
+
+            var islandsLbl = labelStrip.AddComponent<TextMeshProUGUI>();
+            ApplyFont(islandsLbl, 11f, false);
+            islandsLbl.text      = "ISLANDS";
+            islandsLbl.color     = new Color(0.5f, 0.6f, 0.7f, 1f);
+            islandsLbl.alignment = TextAlignmentOptions.MidlineLeft;
+            var islandsLblRt = islandsLbl.GetComponent<RectTransform>();
+            islandsLblRt.anchorMin = Vector2.zero;
+            islandsLblRt.anchorMax = Vector2.one;
+            islandsLblRt.offsetMin = new Vector2(12f, 0f);
+            islandsLblRt.offsetMax = Vector2.zero;
+
+            // ScrollRect (fills remaining height below label strip)
             var scrollGo = new GameObject("Scroll");
             scrollGo.transform.SetParent(palGo.transform, false);
             var scrollRt = scrollGo.AddComponent<RectTransform>();
-            scrollRt.anchorMin = Vector2.zero; scrollRt.anchorMax = Vector2.one;
-            scrollRt.offsetMin = new Vector2(0f, 2f); scrollRt.offsetMax = new Vector2(0f, -1f);
+            scrollRt.anchorMin = Vector2.zero;
+            scrollRt.anchorMax = new Vector2(1f, 1f);
+            scrollRt.offsetMin = new Vector2(0f, 2f);
+            scrollRt.offsetMax = new Vector2(0f, -22f);
 
             scrollGo.AddComponent<Image>().color = Color.clear;
 
             var scroll = scrollGo.AddComponent<ScrollRect>();
-            scroll.vertical   = false;
-            scroll.horizontal = true;
+            scroll.vertical          = false;
+            scroll.horizontal        = true;
             scroll.scrollSensitivity = 30f;
-            scroll.movementType = ScrollRect.MovementType.Elastic;
+            scroll.movementType      = ScrollRect.MovementType.Elastic;
 
             // Viewport
             var vpGo = new GameObject("Viewport");
             vpGo.transform.SetParent(scrollGo.transform, false);
             var vpRt = vpGo.AddComponent<RectTransform>();
-            vpRt.anchorMin = Vector2.zero; vpRt.anchorMax = Vector2.one;
+            vpRt.anchorMin = Vector2.zero;
+            vpRt.anchorMax = Vector2.one;
             vpRt.offsetMin = vpRt.offsetMax = Vector2.zero;
             vpGo.AddComponent<Image>().color = Color.clear;
             vpGo.AddComponent<Mask>().showMaskGraphic = false;
@@ -275,7 +361,7 @@ namespace BoplMapEditor.UI
             contentGo.AddComponent<ContentSizeFitter>().horizontalFit =
                 ContentSizeFitter.FitMode.PreferredSize;
 
-            scroll.content = contentRt;
+            scroll.content  = contentRt;
             _paletteContent = contentRt;
         }
 
@@ -286,8 +372,6 @@ namespace BoplMapEditor.UI
             _items.Clear();
             _selectedSlot = 0;
 
-            // Build one item per (preset × material type)
-            // Group by material type first so same-material islands are together
             string[] presetNames = { "WIDE", "MED", "SMALL", "ROUND", "NORM", "LONG" };
 
             int slot = 0;
@@ -326,31 +410,32 @@ namespace BoplMapEditor.UI
             bgImg.color  = selected ? ItemSel : ItemNorm;
 
             var le = go.AddComponent<LayoutElement>();
-            le.minWidth  = ITEM_W;
-            le.minHeight = ITEM_H;
+            le.minWidth       = ITEM_W;
             le.flexibleHeight = 1;
 
-            go.AddComponent<Button>(); // click handled by RefreshPalette
+            go.AddComponent<Button>();
 
             // Island shape thumbnail
-            // Scale: normalize so longest dimension fills ~70% of card width
-            float maxDim  = Mathf.Max(preset.hw * 2f, preset.hh * 2f);
-            float scale   = (ITEM_W * 0.70f) / maxDim;
-            float thumbW  = Mathf.Clamp(preset.hw * 2f * scale, 6f, ITEM_W - 8f);
-            float thumbH  = Mathf.Clamp(preset.hh * 2f * scale, 4f, ITEM_H - 22f);
+            // Scale so longest dimension fills proportionally (max 70px wide, 44px tall)
+            float rawW = preset.hw * 2f;
+            float rawH = preset.hh * 2f;
+            float scaleW = 70f / rawW;
+            float scaleH = 44f / rawH;
+            float scale  = Mathf.Min(scaleW, scaleH);
+            float thumbW = Mathf.Clamp(rawW * scale, 4f, 70f);
+            float thumbH = Mathf.Clamp(rawH * scale, 4f, 44f);
 
             var shapeGo = new GameObject("Shape");
             shapeGo.transform.SetParent(go.transform, false);
             var shapeImg = shapeGo.AddComponent<Image>();
             shapeImg.raycastTarget = false;
 
-            // Use real game sprite if available, otherwise solid color
             var gameSprite = StyleHelper.GetPlatformSprite(matType);
             if (gameSprite != null)
             {
                 shapeImg.sprite = gameSprite;
                 shapeImg.type   = Image.Type.Sliced;
-                shapeImg.color  = Color.white; // let the sprite show naturally
+                shapeImg.color  = Color.white;
             }
             else
             {
@@ -364,41 +449,43 @@ namespace BoplMapEditor.UI
             srt.anchorMax        = new Vector2(0.5f, 0.5f);
             srt.pivot            = new Vector2(0.5f, 0.5f);
             srt.sizeDelta        = new Vector2(thumbW, thumbH);
-            srt.anchoredPosition = new Vector2(0f, 6f);
+            srt.anchoredPosition = new Vector2(0f, 8f);
 
-            // Material color dot (small circle in top-right corner)
+            // Material color dot: 14px circle, top-right of card
             var dotGo = new GameObject("Dot");
             dotGo.transform.SetParent(go.transform, false);
             var dotImg = dotGo.AddComponent<Image>();
-            dotImg.color        = StyleHelper.PlatformColors[matType];
-            dotImg.sprite       = StyleHelper.MakeRoundedSpriteSmall();
-            dotImg.type         = Image.Type.Sliced;
+            dotImg.color         = StyleHelper.PlatformColors[matType];
+            dotImg.sprite        = StyleHelper.MakeRoundedSpriteSmall();
+            dotImg.type          = Image.Type.Sliced;
             dotImg.raycastTarget = false;
             var drt = dotGo.GetComponent<RectTransform>();
-            drt.anchorMin = new Vector2(1f, 1f); drt.anchorMax = new Vector2(1f, 1f);
-            drt.pivot     = new Vector2(1f, 1f);
-            drt.sizeDelta = new Vector2(12f, 12f);
+            drt.anchorMin        = new Vector2(1f, 1f);
+            drt.anchorMax        = new Vector2(1f, 1f);
+            drt.pivot            = new Vector2(1f, 1f);
+            drt.sizeDelta        = new Vector2(14f, 14f);
             drt.anchoredPosition = new Vector2(-4f, -4f);
 
-            // Label at bottom: preset name
+            // Preset name label: 12px bold, bottom of card, uppercase
             var lblGo = new GameObject("Label");
             lblGo.transform.SetParent(go.transform, false);
             var lbl = lblGo.AddComponent<TextMeshProUGUI>();
-            ApplyFont(lbl, 9f, true);
-            lbl.text      = presetName;
-            lbl.fontStyle = FontStyles.Bold | FontStyles.UpperCase;
-            lbl.alignment = TextAlignmentOptions.Center;
-            lbl.color     = selected ? new Color(0.1f, 0.1f, 0.2f, 1f) : White;
+            ApplyFont(lbl, 12f, true);
+            lbl.text          = presetName;
+            lbl.fontStyle     = FontStyles.Bold | FontStyles.UpperCase;
+            lbl.alignment     = TextAlignmentOptions.Center;
+            lbl.color         = selected ? new Color(0.1f, 0.1f, 0.2f, 1f) : White;
             lbl.raycastTarget = false;
             var lrt = lblGo.GetComponent<RectTransform>();
-            lrt.anchorMin = new Vector2(0f, 0f); lrt.anchorMax = new Vector2(1f, 0f);
+            lrt.anchorMin = new Vector2(0f, 0f);
+            lrt.anchorMax = new Vector2(1f, 0f);
             lrt.pivot     = new Vector2(0.5f, 0f);
-            lrt.offsetMin = new Vector2(0f, 4f); lrt.offsetMax = new Vector2(0f, 16f);
+            lrt.offsetMin = new Vector2(2f, 4f);
+            lrt.offsetMax = new Vector2(-2f, 20f);
 
             return new PaletteItem
             {
-                PresetIndex  = (int)(System.Array.IndexOf(MapEditorController.IslandPresets,
-                               preset)),
+                PresetIndex  = System.Array.IndexOf(MapEditorController.IslandPresets, preset),
                 MaterialType = matType,
                 ThumbBg      = bgImg,
                 ThumbShape   = shapeImg,
@@ -407,9 +494,9 @@ namespace BoplMapEditor.UI
 
         void SelectSlot(int slot, int presetIdx, int matType)
         {
-            _selectedSlot            = slot;
-            _ctrl.SelectedPreset     = presetIdx;
-            _ctrl.PlacePlatformType  = matType;
+            _selectedSlot           = slot;
+            _ctrl.SelectedPreset    = presetIdx;
+            _ctrl.PlacePlatformType = matType;
             ApplySlotHighlight();
         }
 
@@ -417,17 +504,15 @@ namespace BoplMapEditor.UI
         {
             for (int i = 0; i < _items.Count; i++)
             {
-                bool sel = i == _selectedSlot;
-                var item = _items[i];
+                bool sel  = i == _selectedSlot;
+                var  item = _items[i];
                 item.ThumbBg.color = sel ? ItemSel : ItemNorm;
 
-                // Update label color
                 var lbl = item.ThumbBg.transform.Find("Label")
                                ?.GetComponent<TextMeshProUGUI>();
                 if (lbl != null)
                     lbl.color = sel ? new Color(0.1f, 0.1f, 0.2f, 1f) : White;
 
-                // If using fallback color (no real sprite), re-tint shape
                 var shape = item.ThumbShape;
                 if (shape != null && shape.sprite == null)
                     shape.color = StyleHelper.PlatformColors[item.MaterialType];
@@ -436,7 +521,7 @@ namespace BoplMapEditor.UI
 
         // ── Helpers ───────────────────────────────────────────────────────
 
-        Button TopBtn(Transform parent, string text, Color color, float minW)
+        Button TopBtn(Transform parent, string text, Color color, float minW, float minH)
         {
             var go = new GameObject("Btn_" + text);
             go.transform.SetParent(parent, false);
@@ -446,38 +531,36 @@ namespace BoplMapEditor.UI
             img.type   = Image.Type.Sliced;
 
             var btn = go.AddComponent<Button>();
-            var c = btn.colors;
+            var c   = btn.colors;
             c.normalColor = color;
             c.highlightedColor = new Color(
-                Mathf.Min(color.r+0.12f,1f),
-                Mathf.Min(color.g+0.12f,1f),
-                Mathf.Min(color.b+0.12f,1f),1f);
+                Mathf.Min(color.r + 0.12f, 1f),
+                Mathf.Min(color.g + 0.12f, 1f),
+                Mathf.Min(color.b + 0.12f, 1f), 1f);
             c.pressedColor = _darkBlue;
             c.fadeDuration = 0.07f;
             btn.colors = c;
 
-            go.AddComponent<LayoutElement>().minWidth = minW;
-            go.GetComponent<LayoutElement>().flexibleHeight = 1;
+            var le        = go.AddComponent<LayoutElement>();
+            le.minWidth   = minW;
+            le.minHeight  = minH;
+            le.preferredWidth  = minW;
+            le.preferredHeight = minH;
 
             var lblGo = new GameObject("L");
             lblGo.transform.SetParent(go.transform, false);
             var tmp = lblGo.AddComponent<TextMeshProUGUI>();
-            ApplyFont(tmp, 13f, true);
-            tmp.text = text;
-            tmp.fontStyle = FontStyles.Bold | FontStyles.UpperCase;
+            ApplyFont(tmp, 16f, true);
+            tmp.text          = text;
+            tmp.fontStyle     = FontStyles.Bold | FontStyles.UpperCase;
+            tmp.alignment     = TextAlignmentOptions.Center;
             tmp.raycastTarget = false;
             var lrt = lblGo.GetComponent<RectTransform>();
-            lrt.anchorMin = Vector2.zero; lrt.anchorMax = Vector2.one;
-            lrt.offsetMin = new Vector2(6,0); lrt.offsetMax = new Vector2(-6,0);
+            lrt.anchorMin = Vector2.zero;
+            lrt.anchorMax = Vector2.one;
+            lrt.offsetMin = new Vector2(4f, 0f);
+            lrt.offsetMax = new Vector2(-4f, 0f);
             return btn;
-        }
-
-        void Div(Transform parent)
-        {
-            var go = new GameObject("Div");
-            go.transform.SetParent(parent, false);
-            go.AddComponent<Image>().color = new Color(1f,1f,1f,0.07f);
-            go.AddComponent<LayoutElement>().minWidth = 1f;
         }
 
         // Full-rect panel helper
@@ -487,10 +570,11 @@ namespace BoplMapEditor.UI
             var go = new GameObject(name);
             go.transform.SetParent(parent, false);
             var img = go.AddComponent<Image>();
-            img.color = color;
+            img.color         = color;
             img.raycastTarget = false;
             var rt = go.GetComponent<RectTransform>();
-            rt.anchorMin = anchorMin; rt.anchorMax = anchorMax;
+            rt.anchorMin = anchorMin;
+            rt.anchorMax = anchorMax;
             rt.offsetMin = rt.offsetMax = Vector2.zero;
             return img;
         }
@@ -504,9 +588,9 @@ namespace BoplMapEditor.UI
                 if (font != null) tmp.font = font;
             }
             catch { }
-            tmp.fontSize  = size;
-            tmp.fontStyle = bold ? FontStyles.Bold : FontStyles.Normal;
-            tmp.color     = White;
+            tmp.fontSize           = size;
+            tmp.fontStyle          = bold ? FontStyles.Bold : FontStyles.Normal;
+            tmp.color              = Color.white;
             tmp.enableWordWrapping = false;
         }
     }
@@ -527,9 +611,9 @@ namespace BoplMapEditor.UI
                 var go = new GameObject("S" + i);
                 go.transform.SetParent(transform, false);
                 var img = go.AddComponent<Image>();
-                img.color = new Color(0.50f, 0.76f, 0.97f, 0f);
+                img.color         = new Color(0.50f, 0.76f, 0.97f, 0f);
                 img.raycastTarget = false;
-                _stripes[i] = img;
+                _stripes[i]       = img;
             }
         }
 
@@ -547,9 +631,9 @@ namespace BoplMapEditor.UI
                 rt.anchorMax = new Vector2(1f, y + 0.003f);
                 rt.offsetMin = rt.offsetMax = Vector2.zero;
 
-                var c = _stripes[i].color;
-                c.a = Mathf.Clamp(alpha, 0f, 1f);
-                _stripes[i].color = c;
+                var col = _stripes[i].color;
+                col.a           = Mathf.Clamp(alpha, 0f, 1f);
+                _stripes[i].color = col;
             }
         }
     }
