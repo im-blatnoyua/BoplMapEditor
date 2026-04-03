@@ -1,49 +1,38 @@
 using BoplMapEditor.Data;
 using BoplMapEditor.UI;
+using HarmonyLib;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 
 namespace BoplMapEditor.Core
 {
-    // Manages the editor "scene" by:
-    // 1. Loading the level additively (keeps its own visual init intact)
-    // 2. Hiding the CharacterSelect canvas so only the level shows
-    // 3. Showing a ScreenSpaceOverlay canvas with editor UI on top
-    // 4. Cleaning up on close
     public static class EditorSceneManager
     {
-        public static MapData? PendingMap    { get; private set; }
         public static bool     IsEditorScene { get; private set; }
+        public static MapData? PendingMap    { get; private set; }
 
-        static string? _loadedScene;
         static Canvas? _hiddenLobbyCanvas;
 
-        private static readonly string[][] _sceneNames =
+        private static readonly string[][] _scenes =
         {
-            new[] { "Level1", "Level2", "Level3" },
-            new[] { "Level22", "Level23", "Level24" },
-            new[] { "Level35", "Level37", "Level39" },
+            new[] { "Level1",  "Level2",  "Level3"  },  // Grass
+            new[] { "Level22", "Level23", "Level24" },  // Snow
+            new[] { "Level35", "Level37", "Level39" },  // Space
         };
 
         public static void Open(MapData map)
         {
             if (IsEditorScene) return;
-
-            PendingMap    = map;
             IsEditorScene = true;
+            PendingMap    = map;
 
-            // Hide the CharacterSelect canvas so lobby UI doesn't show through
-            var lobbyCanvas = Object.FindObjectOfType<Canvas>();
-            if (lobbyCanvas != null)
-            {
-                lobbyCanvas.enabled = false;
-                _hiddenLobbyCanvas  = lobbyCanvas;
-                Plugin.Log.LogInfo($"[EditorSceneMgr] Hid canvas: {lobbyCanvas.name}");
-            }
+            // Hide lobby canvas
+            _hiddenLobbyCanvas = Object.FindObjectOfType<Canvas>();
+            if (_hiddenLobbyCanvas != null) _hiddenLobbyCanvas.enabled = false;
 
-            var names = map.LevelTheme == 2 ? _sceneNames[2]
-                      : map.LevelTheme == 1 ? _sceneNames[1]
-                      : _sceneNames[0];
+            var names = map.LevelTheme == 2 ? _scenes[2]
+                      : map.LevelTheme == 1 ? _scenes[1]
+                      : _scenes[0];
 
             SceneManager.sceneLoaded += OnLevelLoaded;
 
@@ -51,119 +40,71 @@ namespace BoplMapEditor.Core
             {
                 try
                 {
-                    SceneManager.LoadScene(name, LoadSceneMode.Additive);
-                    _loadedScene = name;
-                    Plugin.Log.LogInfo($"[EditorSceneMgr] Loading '{name}' additively");
+                    // Load as SINGLE — full scene init so all visuals work
+                    SceneManager.LoadScene(name, LoadSceneMode.Single);
+                    Plugin.Log.LogInfo($"[EditorSceneMgr] Loading '{name}'");
                     return;
                 }
                 catch { }
             }
 
-            // Fallback by index
             int idx = map.LevelTheme == 2 ? 60 : map.LevelTheme == 1 ? 30 : 6;
-            try
-            {
-                SceneManager.LoadScene(idx, LoadSceneMode.Additive);
-                _loadedScene = $"idx_{idx}";
-                Plugin.Log.LogInfo($"[EditorSceneMgr] Loading index {idx} additively");
-            }
-            catch (System.Exception ex)
-            {
-                Plugin.Log.LogError($"[EditorSceneMgr] Failed to load any level: {ex.Message}");
-                Cleanup();
-            }
+            SceneManager.LoadScene(idx, LoadSceneMode.Single);
+            Plugin.Log.LogInfo($"[EditorSceneMgr] Loading scene index {idx}");
         }
 
         public static void Close()
         {
             IsEditorScene = false;
             PendingMap    = null;
-            Cleanup();
-        }
-
-        static void Cleanup()
-        {
-            SceneManager.sceneLoaded -= OnLevelLoaded;
-
-            // Unload the level scene
-            if (_loadedScene != null)
-            {
-                try { SceneManager.UnloadSceneAsync(_loadedScene); } catch { }
-                _loadedScene = null;
-            }
-
-            // Restore lobby canvas
-            if (_hiddenLobbyCanvas != null)
-            {
-                _hiddenLobbyCanvas.enabled = true;
-                _hiddenLobbyCanvas = null;
-            }
-
-            Plugin.Log.LogInfo("[EditorSceneMgr] Closed.");
+            SceneManager.LoadScene("CharacterSelect");
+            Plugin.Log.LogInfo("[EditorSceneMgr] → CharacterSelect");
         }
 
         static void OnLevelLoaded(Scene scene, LoadSceneMode mode)
         {
-            if (mode != LoadSceneMode.Additive) return;
+            if (!IsEditorScene) return;
             SceneManager.sceneLoaded -= OnLevelLoaded;
+            Plugin.Log.LogInfo($"[EditorSceneMgr] Level '{scene.name}' loaded");
 
-            if (_loadedScene != null && _loadedScene.StartsWith("idx_"))
-                _loadedScene = scene.name;
-
-            Plugin.Log.LogInfo($"[EditorSceneMgr] Level '{scene.name}' ready");
-
-            // Make level scene active so its cameras become primary
-            SceneManager.SetActiveScene(scene);
-
-            // Disable only gameplay logic — keep visual systems alive
+            // Hide platforms
             foreach (var root in scene.GetRootGameObjects())
-                DisableGameLogic(root);
-
-            // Set level cameras to depth 1 so they render over lobby camera (depth 0)
-            foreach (var root in scene.GetRootGameObjects())
-                foreach (var cam in root.GetComponentsInChildren<Camera>(true))
+                foreach (var srr in root.GetComponentsInChildren<StickyRoundedRectangle>(true))
                 {
-                    cam.depth = 1f;
-                    Plugin.Log.LogInfo($"[EditorSceneMgr] Camera '{cam.name}' depth=1");
+                    var sr = srr.GetComponent<SpriteRenderer>();
+                    if (sr != null) sr.enabled = false;
                 }
 
-            // Scan platform assets
             StyleHelper.InvalidateMaterialCache();
             StyleHelper.ScanPlatformAssets();
 
-            // Spawn bootstrap to build editor UI
             var go = new GameObject("EditorBootstrap");
-            SceneManager.MoveGameObjectToScene(go, scene);
             go.AddComponent<EditorBootstrap>();
         }
+    }
 
-        static void DisableGameLogic(GameObject root)
+    // Harmony patch — skip GameSessionHandler.Init() when in editor mode
+    // This prevents player spawning and battle start while keeping visuals intact
+    [HarmonyPatch(typeof(GameSessionHandler), "Init")]
+    public static class GameSessionHandler_EditorPatch
+    {
+        static bool Prefix()
         {
-            // 1. Hide all platforms — disable SpriteRenderer on StickyRoundedRectangle objects
-            foreach (var srr in root.GetComponentsInChildren<StickyRoundedRectangle>(true))
-            {
-                var sr = srr.GetComponent<SpriteRenderer>();
-                if (sr != null) sr.enabled = false;
-                srr.enabled = false;
-            }
+            if (!EditorSceneManager.IsEditorScene) return true; // run normally
+            Plugin.Log.LogInfo("[EditorPatch] Skipped GameSessionHandler.Init (editor mode)");
+            return false; // skip
+        }
+    }
 
-            // 2. Kill gameplay logic components by type name
-            string[] killTypes = {
-                "GameSessionHandler", "PlayerHandler", "PlayerInit",
-                "AbilitySpawner", "BoplCharacter", "PlayerBody", "BoplBody",
-            };
-            foreach (var typeName in killTypes)
-                foreach (var asm in System.AppDomain.CurrentDomain.GetAssemblies())
-                {
-                    var t = asm.GetType(typeName);
-                    if (t == null) continue;
-                    foreach (var comp in root.GetComponentsInChildren(t, true))
-                        if (comp is Behaviour b) b.enabled = false;
-                    break;
-                }
-
-            int platforms = root.GetComponentsInChildren<StickyRoundedRectangle>(true).Length;
-            Plugin.Log.LogInfo($"[EditorSceneMgr] Hid {platforms} platforms in '{root.name}'");
+    // Also patch Awake to prevent any pre-init setup
+    [HarmonyPatch(typeof(GameSessionHandler), "Awake")]
+    public static class GameSessionHandler_AwakePatch
+    {
+        static bool Prefix()
+        {
+            if (!EditorSceneManager.IsEditorScene) return true;
+            Plugin.Log.LogInfo("[EditorPatch] Skipped GameSessionHandler.Awake (editor mode)");
+            return false;
         }
     }
 
@@ -173,8 +114,7 @@ namespace BoplMapEditor.Core
 
         void Update()
         {
-            _frames++;
-            if (_frames < 3) return;
+            if (++_frames < 3) return;
 
             if (EditorSceneManager.PendingMap == null)
             {
@@ -188,7 +128,6 @@ namespace BoplMapEditor.Core
             var darkBlue = StyleHelper.DarkBlue;
             var orange   = StyleHelper.Orange;
 
-            // ScreenSpaceOverlay canvas — always on top regardless of camera depths
             var canvasGo = new GameObject("EditorCanvas");
             var canvas   = canvasGo.AddComponent<Canvas>();
             canvas.renderMode   = RenderMode.ScreenSpaceOverlay;
