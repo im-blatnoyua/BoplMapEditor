@@ -173,9 +173,32 @@ namespace BoplMapEditor.Util
 
         private static bool TrySetRadius(StickyRoundedRectangle srr, float radius)
         {
-            string[] candidates = { "radius", "cornerRadius", "roundness", "rounding",
-                                    "bevelRadius", "_radius", "m_radius", "Radius" };
             var fixVal = FixConvert.ToFix(radius);
+
+            // Radius lives inside DPhysicsRoundedRect rr, not directly on SRR
+            var rrField = srr.GetType().GetField("rr",
+                BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+            if (rrField != null)
+            {
+                var rr = rrField.GetValue(srr);
+                if (rr != null)
+                {
+                    string[] rrCandidates = { "radius", "r", "cornerRadius", "Radius" };
+                    foreach (var name in rrCandidates)
+                    {
+                        var f = rr.GetType().GetField(name,
+                            BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+                        if (f != null) { f.SetValue(rr, fixVal); return true; }
+                    }
+                    // Log rr fields once so we can identify the right name
+                    Plugin.Log.LogWarning("[PlatformSpawner] radius not found in rr. rr fields:");
+                    foreach (var f in rr.GetType().GetFields(BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic))
+                        Plugin.Log.LogInfo($"  rr field: {f.FieldType.Name} {f.Name}");
+                }
+            }
+
+            // Fallback: try directly on SRR
+            string[] candidates = { "radius", "cornerRadius", "roundness", "Radius" };
             foreach (var name in candidates)
             {
                 var f = srr.GetType().GetField(name,
