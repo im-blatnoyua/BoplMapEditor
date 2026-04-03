@@ -286,9 +286,11 @@ namespace BoplMapEditor.UI
             _viewportRt = rt;
         }
 
-        void OnViewportClick(UnityEngine.EventSystems.BaseEventData data)
+        void OnViewportClick(BaseEventData data)
         {
-            if (!(data is UnityEngine.EventSystems.PointerEventData ped)) return;
+            if (!(data is PointerEventData ped)) return;
+            // Deselect any selected widget when clicking empty space
+            PlatformEditorWidget.DeselectAll();
 
             // Convert screen position to viewport local position
             Vector2 localPos;
@@ -342,34 +344,28 @@ namespace BoplMapEditor.UI
             }
         }
 
-        void SpawnWidget(BoplMapEditor.Data.PlatformData pd)
+        void SpawnWidget(PlatformData pd)
         {
-            var go = new GameObject("Widget");
+            var go  = new GameObject("Widget");
             go.transform.SetParent(_widgetRoot, false);
 
             var img   = go.AddComponent<Image>();
-            img.sprite = _selectedSprite ?? StyleHelper.MakeRoundedSprite();
+            var spr   = StyleHelper.GetPlatformSprite(Mathf.Clamp(pd.Type, 0, 4));
+            img.sprite = spr ?? StyleHelper.MakeRoundedSprite();
             img.type   = Image.Type.Sliced;
-            img.color  = _selectedSprite != null
-                ? Color.white
-                : StyleHelper.PlatformColors[Mathf.Clamp(_ctrl.PlacePlatformType, 0, 4)];
-
-            // Convert world size to viewport canvas size
-            var vSize  = _viewportRt.rect.size;
-            float ww   = (pd.HalfW * 2f) / (WORLD_X_MAX - WORLD_X_MIN) * vSize.x;
-            float wh   = (pd.HalfH * 2f) / (WORLD_Y_MAX - WORLD_Y_MIN) * vSize.y;
-
-            // Convert world position to viewport canvas position
-            float cx = (pd.X - WORLD_X_MIN) / (WORLD_X_MAX - WORLD_X_MIN) * vSize.x
-                       + _viewportRt.rect.xMin;
-            float cy = (pd.Y - WORLD_Y_MIN) / (WORLD_Y_MAX - WORLD_Y_MIN) * vSize.y
-                       + _viewportRt.rect.yMin;
+            img.color  = spr != null ? Color.white : StyleHelper.PlatformColors[Mathf.Clamp(pd.Type, 0, 4)];
 
             var rt = go.GetComponent<RectTransform>();
             rt.anchorMin = rt.anchorMax = rt.pivot = new Vector2(0.5f, 0.5f);
-            rt.sizeDelta = new Vector2(Mathf.Max(ww, 8f), Mathf.Max(wh, 4f));
-            rt.anchoredPosition = new Vector2(cx, cy);
+
+            int idx = _ctrl.CurrentMap.Platforms.IndexOf(pd);
+            var widget = PlatformEditorWidget.Attach(go, pd, idx, this, _viewportRt);
+            widget.RefreshPosition();
         }
+
+        // Public accessors for PlatformEditorWidget
+        public bool SnapToGrid => _ctrl.SnapToGrid;
+        public float GridSize  => _ctrl.GridSize;
 
         // ── Palette (horizontal scroll) ───────────────────────────────────
 

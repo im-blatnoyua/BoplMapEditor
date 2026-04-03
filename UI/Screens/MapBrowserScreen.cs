@@ -724,7 +724,7 @@ namespace BoplMapEditor.UI
             var lblGo = new GameObject("L");
             lblGo.transform.SetParent(go.transform, false);
             var tmp = lblGo.AddComponent<TextMeshProUGUI>();
-            ApplyGameFont(tmp, 15f, bold: true);
+            ApplyGameFont(tmp, 48f, bold: true);
             tmp.text               = text;
             tmp.color              = White;
             tmp.fontStyle          = FontStyles.Bold | FontStyles.UpperCase;
@@ -770,7 +770,7 @@ namespace BoplMapEditor.UI
             var lblGo = new GameObject("L");
             lblGo.transform.SetParent(go.transform, false);
             var tmp = lblGo.AddComponent<TextMeshProUGUI>();
-            ApplyGameFont(tmp, 11f, bold: true);
+            ApplyGameFont(tmp, 36f, bold: true);
             tmp.text               = text;
             tmp.color              = White;
             tmp.fontStyle          = FontStyles.Bold | FontStyles.UpperCase;
