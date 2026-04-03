@@ -71,6 +71,11 @@ namespace BoplMapEditor.UI
             rt.anchorMax = Vector2.one;
             rt.offsetMin = rt.offsetMax = Vector2.zero;
 
+            // Opaque root background — covers the lobby completely when open
+            var rootBg = go.AddComponent<Image>();
+            rootBg.color        = new Color(0.42f, 0.68f, 0.95f, 1f); // sky blue base
+            rootBg.raycastTarget = true;
+
             var s       = go.AddComponent<NativeMapEditorScreen>();
             s._ctrl     = ctrl;
             s._browser  = browser;
