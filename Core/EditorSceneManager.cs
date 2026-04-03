@@ -10,7 +10,8 @@ namespace BoplMapEditor.Core
     {
         public static bool     IsEditorScene  { get; private set; }
         public static MapData? PendingMap     { get; private set; }
-        public static string   ReturnScene    { get; set; } = "CharacterSelect";
+        public static string   ReturnScene      { get; set; } = "CharacterSelect";
+        public static bool     ReopenBrowser    { get; set; } = false;
 
         static Canvas? _hiddenLobbyCanvas;
 
@@ -58,8 +59,9 @@ namespace BoplMapEditor.Core
         {
             IsEditorScene = false;
             PendingMap    = null;
+            ReopenBrowser = true; // signal LobbyButtonPatch to reopen browser
             SceneManager.LoadScene(ReturnScene);
-            Plugin.Log.LogInfo($"[EditorSceneMgr] → {ReturnScene}");
+            Plugin.Log.LogInfo($"[EditorSceneMgr] → {ReturnScene} (reopen browser)");
         }
 
         static void OnLevelLoaded(Scene scene, LoadSceneMode mode)

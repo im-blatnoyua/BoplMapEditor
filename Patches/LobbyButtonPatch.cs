@@ -83,6 +83,13 @@ namespace BoplMapEditor.Patches
             try { CreateScreens(canvas, blue, darkBlue, orange); }
             catch (System.Exception ex)
             { Plugin.Log.LogError($"[LobbyButtonPatch] CreateScreens failed: {ex}"); }
+
+            // Reopen browser if returning from editor
+            if (BoplMapEditor.Core.EditorSceneManager.ReopenBrowser)
+            {
+                BoplMapEditor.Core.EditorSceneManager.ReopenBrowser = false;
+                Plugin.BrowserScreen?.Open();
+            }
         }
 
         static void CreateButton(GameObject? joinSource, Canvas canvas,

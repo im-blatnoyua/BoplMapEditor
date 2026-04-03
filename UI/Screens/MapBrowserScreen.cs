@@ -23,7 +23,7 @@ namespace BoplMapEditor.UI
         static readonly Color DangerRed     = new Color(0.80f, 0.18f, 0.18f, 1f);
         static readonly Color White         = Color.white;
 
-        const float TOP_BAR_H = 80f;
+        const float TOP_BAR_H = 96f;
 
         // ── References ────────────────────────────────────────────────────
         private RectTransform         _root         = null!;
@@ -120,7 +120,7 @@ namespace BoplMapEditor.UI
             countGo.AddComponent<LayoutElement>().minWidth = 80f;
 
             // + NEW MAP button
-            var newBtn = MakeButton(topGo.transform, "+ NEW MAP", _orange, 150f, 54f);
+            var newBtn = MakeButton(topGo.transform, "+ NEW MAP", _orange, 180f, 68f);
             newBtn.onClick.AddListener(OnNewMap);
 
             // BACK button
@@ -796,108 +796,151 @@ namespace BoplMapEditor.UI
 
         // ── New map ───────────────────────────────────────────────────────
 
-        // ── Environment selection dialog ──────────────────────────────────
+        // ── New Map dialog (name + environment) ───────────────────────────
 
-        GameObject? _envDialog;
+        GameObject?      _newMapDialog;
+        TMP_InputField?  _newMapNameInput;
+        int              _newMapTheme = 0;
+        Image[]          _envBtns = new Image[3];
 
         void OnNewMap()
         {
-            if (_envDialog != null) { _envDialog.SetActive(true); return; }
+            if (_newMapDialog != null) { _newMapDialog.SetActive(true); _newMapNameInput!.text = ""; return; }
 
-            // Overlay
-            _envDialog = new GameObject("EnvDialog");
-            _envDialog.transform.SetParent(_root, false);
-            var overlay = _envDialog.AddComponent<Image>();
-            overlay.color = new Color(0f, 0f, 0f, 0.65f);
-            var ort = _envDialog.GetComponent<RectTransform>();
+            // Dark overlay
+            _newMapDialog = new GameObject("NewMapDialog");
+            _newMapDialog.transform.SetParent(_root, false);
+            var overlay = _newMapDialog.AddComponent<Image>();
+            overlay.color = new Color(0f, 0f, 0f, 0.72f);
+            var ort = _newMapDialog.GetComponent<RectTransform>();
             ort.anchorMin = Vector2.zero; ort.anchorMax = Vector2.one;
             ort.offsetMin = ort.offsetMax = Vector2.zero;
 
-            // Card
+            // Card — wider and taller
             var card = new GameObject("Card");
-            card.transform.SetParent(_envDialog.transform, false);
+            card.transform.SetParent(_newMapDialog.transform, false);
             var cardImg = card.AddComponent<Image>();
-            cardImg.color  = new Color(0.15f, 0.25f, 0.45f, 1f);
+            cardImg.color  = new Color(0.12f, 0.20f, 0.38f, 1f);
             cardImg.sprite = StyleHelper.MakeRoundedSprite();
             cardImg.type   = Image.Type.Sliced;
             var crt = card.GetComponent<RectTransform>();
-            crt.anchorMin = new Vector2(0.5f, 0.5f); crt.anchorMax = new Vector2(0.5f, 0.5f);
-            crt.pivot     = new Vector2(0.5f, 0.5f);
-            crt.sizeDelta = new Vector2(400f, 220f);
+            crt.anchorMin = crt.anchorMax = crt.pivot = new Vector2(0.5f, 0.5f);
+            crt.sizeDelta = new Vector2(480f, 340f);
 
             var vlg = card.AddComponent<VerticalLayoutGroup>();
-            vlg.padding = new RectOffset(28, 28, 24, 24);
-            vlg.spacing = 16; vlg.childForceExpandWidth = true; vlg.childForceExpandHeight = false;
+            vlg.padding = new RectOffset(32, 32, 28, 28);
+            vlg.spacing = 20; vlg.childForceExpandWidth = true; vlg.childForceExpandHeight = false;
 
             // Title
             var titleGo = new GameObject("Title");
             titleGo.transform.SetParent(card.transform, false);
             var titleTmp = titleGo.AddComponent<TextMeshProUGUI>();
-            ApplyGameFont(titleTmp, 22f, true);
-            titleTmp.text = "SELECT ENVIRONMENT";
-            titleTmp.alignment = TextAlignmentOptions.Center;
-            titleGo.AddComponent<LayoutElement>().minHeight = 32f;
+            ApplyGameFont(titleTmp, 26f, true);
+            titleTmp.text = "NEW MAP"; titleTmp.alignment = TextAlignmentOptions.Center;
+            titleGo.AddComponent<LayoutElement>().minHeight = 36f;
 
-            // 3 environment buttons
-            var btnRow = new GameObject("Buttons");
-            btnRow.transform.SetParent(card.transform, false);
-            var hlg = btnRow.AddComponent<HorizontalLayoutGroup>();
-            hlg.spacing = 12; hlg.childForceExpandWidth = true; hlg.childForceExpandHeight = true;
-            btnRow.AddComponent<LayoutElement>().minHeight = 54f;
+            // Name input
+            _newMapNameInput = UIBuilder.MakeInputField(card.transform, "Map name...",
+                Vector2.zero, new Vector2(416f, 54f));
+            _newMapNameInput.gameObject.AddComponent<LayoutElement>().minHeight = 54f;
 
-            string[] envNames = { "GRASS", "SNOW", "SPACE" };
+            // Environment label
+            var envLblGo = new GameObject("EnvLabel");
+            envLblGo.transform.SetParent(card.transform, false);
+            var envLblTmp = envLblGo.AddComponent<TextMeshProUGUI>();
+            ApplyGameFont(envLblTmp, 14f, false);
+            envLblTmp.text = "ENVIRONMENT"; envLblTmp.alignment = TextAlignmentOptions.Center;
+            envLblTmp.color = new Color(0.7f, 0.8f, 1f, 1f);
+            envLblGo.AddComponent<LayoutElement>().minHeight = 20f;
+
+            // Environment buttons row — big
+            var envRow = new GameObject("EnvRow");
+            envRow.transform.SetParent(card.transform, false);
+            var ehlg = envRow.AddComponent<HorizontalLayoutGroup>();
+            ehlg.spacing = 14; ehlg.childForceExpandWidth = true; ehlg.childForceExpandHeight = true;
+            envRow.AddComponent<LayoutElement>().minHeight = 70f;
+
+            string[] envNames  = { "GRASS", "SNOW", "SPACE" };
             Color[]  envColors = {
-                new Color(0.25f, 0.62f, 0.18f, 1f),
-                new Color(0.55f, 0.75f, 0.95f, 1f),
-                new Color(0.08f, 0.08f, 0.22f, 1f),
+                new Color(0.22f, 0.58f, 0.15f, 1f),
+                new Color(0.45f, 0.68f, 0.92f, 1f),
+                new Color(0.06f, 0.06f, 0.18f, 1f),
             };
+            _envBtns = new Image[3];
 
             for (int i = 0; i < 3; i++)
             {
-                int theme = i;
-                var btnGo = new GameObject("Env_" + envNames[i]);
-                btnGo.transform.SetParent(btnRow.transform, false);
-                var bImg   = btnGo.AddComponent<Image>();
-                bImg.color  = envColors[i];
-                bImg.sprite = StyleHelper.MakeRoundedSprite();
-                bImg.type   = Image.Type.Sliced;
-                var btn = btnGo.AddComponent<Button>();
-                btn.onClick.AddListener(() => CreateMapWithTheme(theme));
-                var lGo = new GameObject("L");
-                lGo.transform.SetParent(btnGo.transform, false);
-                var lTmp = lGo.AddComponent<TextMeshProUGUI>();
-                ApplyGameFont(lTmp, 15f, true);
-                lTmp.text = envNames[theme]; lTmp.alignment = TextAlignmentOptions.Center;
-                lTmp.raycastTarget = false;
-                var lrt = lGo.GetComponent<RectTransform>();
-                lrt.anchorMin = Vector2.zero; lrt.anchorMax = Vector2.one;
-                lrt.offsetMin = lrt.offsetMax = Vector2.zero;
+                int t = i;
+                var bGo = new GameObject("Env" + i);
+                bGo.transform.SetParent(envRow.transform, false);
+                var bImg = bGo.AddComponent<Image>();
+                bImg.sprite = StyleHelper.MakeRoundedSprite(); bImg.type = Image.Type.Sliced;
+                bImg.color  = t == _newMapTheme ? Color.white : envColors[t];
+                _envBtns[t] = bImg;
+                var bBtn = bGo.AddComponent<Button>();
+                bBtn.onClick.AddListener(() => { _newMapTheme = t; RefreshEnvButtons(envColors); });
+                var bLGo = new GameObject("L"); bLGo.transform.SetParent(bGo.transform, false);
+                var bTmp = bLGo.AddComponent<TextMeshProUGUI>();
+                ApplyGameFont(bTmp, 16f, true);
+                bTmp.text = envNames[i]; bTmp.alignment = TextAlignmentOptions.Center;
+                bTmp.color = t == 0 ? new Color(0.1f,0.1f,0.1f) : Color.white;
+                bTmp.raycastTarget = false;
+                var blrt = bLGo.GetComponent<RectTransform>();
+                blrt.anchorMin = Vector2.zero; blrt.anchorMax = Vector2.one; blrt.offsetMin = blrt.offsetMax = Vector2.zero;
             }
 
-            // Cancel
+            // Bottom row: Cancel + Create
+            var botRow = new GameObject("BotRow");
+            botRow.transform.SetParent(card.transform, false);
+            var bhlg = botRow.AddComponent<HorizontalLayoutGroup>();
+            bhlg.spacing = 14; bhlg.childForceExpandWidth = true; bhlg.childForceExpandHeight = true;
+            botRow.AddComponent<LayoutElement>().minHeight = 54f;
+
             var cancelGo = new GameObject("Cancel");
-            cancelGo.transform.SetParent(card.transform, false);
+            cancelGo.transform.SetParent(botRow.transform, false);
             var cancelImg = cancelGo.AddComponent<Image>();
-            cancelImg.color = new Color(0.5f, 0.1f, 0.1f, 1f);
-            cancelImg.sprite = StyleHelper.MakeRoundedSprite();
-            cancelImg.type = Image.Type.Sliced;
-            var cancelBtn = cancelGo.AddComponent<Button>();
-            cancelBtn.onClick.AddListener(() => _envDialog!.SetActive(false));
-            cancelGo.AddComponent<LayoutElement>().minHeight = 40f;
-            var cLGo = new GameObject("L");
-            cLGo.transform.SetParent(cancelGo.transform, false);
-            var cTmp = cLGo.AddComponent<TextMeshProUGUI>();
-            ApplyGameFont(cTmp, 13f, true); cTmp.text = "CANCEL"; cTmp.alignment = TextAlignmentOptions.Center;
-            cTmp.raycastTarget = false;
-            var clrt = cLGo.GetComponent<RectTransform>();
-            clrt.anchorMin = Vector2.zero; clrt.anchorMax = Vector2.one; clrt.offsetMin = clrt.offsetMax = Vector2.zero;
+            cancelImg.color  = new Color(0.55f, 0.10f, 0.10f, 1f);
+            cancelImg.sprite = StyleHelper.MakeRoundedSprite(); cancelImg.type = Image.Type.Sliced;
+            cancelGo.AddComponent<Button>().onClick.AddListener(() => _newMapDialog!.SetActive(false));
+            DialogLabel(cancelGo.transform, "CANCEL");
+
+            var createGo = new GameObject("Create");
+            createGo.transform.SetParent(botRow.transform, false);
+            var createImg = createGo.AddComponent<Image>();
+            createImg.color  = _orange;
+            createImg.sprite = StyleHelper.MakeRoundedSprite(); createImg.type = Image.Type.Sliced;
+            createGo.AddComponent<Button>().onClick.AddListener(ConfirmNewMap);
+            DialogLabel(createGo.transform, "CREATE");
         }
 
-        void CreateMapWithTheme(int theme)
+        void RefreshEnvButtons(Color[] envColors)
         {
-            if (_envDialog != null) _envDialog.SetActive(false);
-            string name = "Map_" + DateTime.Now.ToString("HHmmss");
-            var newMap  = new MapData(name, theme);
+            for (int i = 0; i < _envBtns.Length; i++)
+            {
+                if (_envBtns[i] == null) continue;
+                _envBtns[i].color = i == _newMapTheme ? Color.white : envColors[i];
+                var lbl = _envBtns[i].GetComponentInChildren<TextMeshProUGUI>();
+                if (lbl != null) lbl.color = i == _newMapTheme ? new Color(0.1f,0.1f,0.1f) : Color.white;
+            }
+        }
+
+        void DialogLabel(Transform parent, string text)
+        {
+            var lGo = new GameObject("L"); lGo.transform.SetParent(parent, false);
+            var lTmp = lGo.AddComponent<TextMeshProUGUI>();
+            ApplyGameFont(lTmp, 16f, true); lTmp.text = text;
+            lTmp.alignment = TextAlignmentOptions.Center; lTmp.raycastTarget = false;
+            var lrt = lGo.GetComponent<RectTransform>();
+            lrt.anchorMin = Vector2.zero; lrt.anchorMax = Vector2.one; lrt.offsetMin = lrt.offsetMax = Vector2.zero;
+        }
+
+        void ConfirmNewMap()
+        {
+            string name = _newMapNameInput != null && !string.IsNullOrWhiteSpace(_newMapNameInput.text)
+                ? _newMapNameInput.text.Trim()
+                : "Map_" + DateTime.Now.ToString("HHmmss");
+            if (_newMapDialog != null) _newMapDialog.SetActive(false);
+            var newMap = new MapData(name, _newMapTheme);
             MapSerializer.SaveMap(newMap, name);
             Close();
             _editorScreen.Open(newMap);
