@@ -342,59 +342,20 @@ namespace BoplMapEditor.UI
 
             var scanned = StyleHelper.ScannedPlatforms;
 
-            // Show each scanned island shape for every material type
-            // All platforms share the same base sprite — only color/material differs
-            for (int mat = 0; mat < StyleHelper.PlatformTypeCount; mat++)
+            // Show only the real islands from the loaded scene — no tinting/fallbacks
+            // Grass map → Level1 sprites, Snow map → Level22 sprites, Space → Level35
+            for (int i = 0; i < scanned.Count; i++)
             {
-                var matSprite = StyleHelper.GetPlatformSprite(mat);
-                var matColor  = StyleHelper.PlatformColors[mat];
-
-                if (scanned.Count > 0)
+                int idx   = i;
+                var entry = scanned[i];
+                var item  = BuildIslandCard(_paletteContent, entry, i == 0);
+                item.ThumbBg.GetComponent<Button>().onClick.AddListener(() =>
                 {
-                    foreach (var shape in scanned)
-                    {
-                        int capMat = mat;
-                        float capHW = shape.HalfW, capHH = shape.HalfH;
-                        var entry = new StyleHelper.PlatformEntry
-                        {
-                            // If no real sprite for this material type, use base sprite
-                            // but mark Color so BuildIslandCard tints it correctly
-                            Sprite       = matSprite ?? shape.Sprite,
-                            // hasSpriteForType = false means tint the sprite with matColor
-                            Color        = matSprite != null ? Color.white : matColor,
-                            HalfW        = capHW,
-                            HalfH        = capHH,
-                            MaterialType = mat,
-                        };
-                        int slot = _items.Count;
-                        var item = BuildIslandCard(_paletteContent, entry, slot == 0);
-                        item.ThumbBg.GetComponent<Button>().onClick.AddListener(() =>
-                        {
-                            _selectedSlot          = slot;
-                            _ctrl.PlacePlatformType = capMat;
-                            ApplySlotHighlight();
-                        });
-                        _items.Add(item);
-                    }
-                }
-                else
-                {
-                    // Fallback — one card per material
-                    int slot = _items.Count;
-                    int capMat = mat;
-                    var entry = new StyleHelper.PlatformEntry
-                    {
-                        Sprite = matSprite, Color = matColor,
-                        HalfW = 4f, HalfH = 1f, MaterialType = mat
-                    };
-                    var item = BuildIslandCard(_paletteContent, entry, slot == 0);
-                    item.ThumbBg.GetComponent<Button>().onClick.AddListener(() =>
-                    {
-                        _selectedSlot = slot; _ctrl.PlacePlatformType = capMat;
-                        ApplySlotHighlight();
-                    });
-                    _items.Add(item);
-                }
+                    _selectedSlot          = idx;
+                    _ctrl.PlacePlatformType = entry.MaterialType;
+                    ApplySlotHighlight();
+                });
+                _items.Add(item);
             }
 
             ApplySlotHighlight();
@@ -439,9 +400,7 @@ namespace BoplMapEditor.UI
             {
                 islandImg.sprite = entry.Sprite;
                 islandImg.type   = Image.Type.Sliced;
-                // Color.white = real sprite shown naturally
-                // any other color = tint fallback sprite to show material type
-                islandImg.color = entry.Color;
+                islandImg.color  = Color.white; // show real sprite naturally
             }
             else
             {
