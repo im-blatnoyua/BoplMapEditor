@@ -49,6 +49,7 @@ namespace BoplMapEditor.Patches
             Color orange   = LobbyButtonHelper.GetField<Color>(__instance, "orange")   ?? new Color(0.95f, 0.55f, 0.10f, 1f);
 
             BoplMapEditor.Core.EditorSceneManager.ReturnScene = "CharacterSelect";
+            BoplMapEditor.Core.TestModeManager.CacheFromLobby(__instance);
             LobbyButtonHelper.Inject(joinSource, __instance.gameObject, blue, darkBlue, orange);
         }
     }

@@ -17,6 +17,33 @@ namespace BoplMapEditor.Core
         public static string   ReturnScene { get; private set; } = "CharacterSelect";
         public static MapData? TestMap     { get; private set; }
 
+        // Cached in lobby before Level1 loads (ScriptableObjects unload with their scene)
+        static PlayerColors?   _cachedPlayerColors;
+        static NamedSpriteList? _cachedAbilityIcons;
+
+        public static void CacheFromLobby(CharacterSelectHandler handler)
+        {
+            try
+            {
+                var pcField = typeof(CharacterSelectHandler).GetField("playerColors",
+                    System.Reflection.BindingFlags.Instance |
+                    System.Reflection.BindingFlags.NonPublic |
+                    System.Reflection.BindingFlags.Public);
+                _cachedPlayerColors = pcField?.GetValue(handler) as PlayerColors;
+
+                if (SteamManager.instance != null)
+                    _cachedAbilityIcons = SteamManager.instance.abilityIcons;
+
+                Plugin.Log.LogInfo($"[TestMode] Cached lobby data: " +
+                    $"colors={(_cachedPlayerColors != null ? "OK" : "null")} " +
+                    $"icons={(_cachedAbilityIcons != null ? "OK" : "null")}");
+            }
+            catch (System.Exception ex)
+            {
+                Plugin.Log.LogWarning($"[TestMode] CacheFromLobby failed: {ex.Message}");
+            }
+        }
+
         public static void StartTest(MapData map, string returnScene)
         {
             if (map.SpawnPoints.Count == 0)
@@ -64,14 +91,20 @@ namespace BoplMapEditor.Core
         {
             try
             {
-                // Find PlayerColors ScriptableObject (loaded in memory from lobby)
-                var allPC = Resources.FindObjectsOfTypeAll<PlayerColors>();
-                if (allPC.Length == 0)
+                // Use cached data from lobby (ScriptableObjects may be unloaded by now)
+                var pc = _cachedPlayerColors;
+                if (pc == null)
                 {
-                    Plugin.Log.LogWarning("[TestMode] PlayerColors not in memory.");
+                    // Fallback: try FindObjectsOfTypeAll
+                    var all = Resources.FindObjectsOfTypeAll<PlayerColors>();
+                    pc = all.Length > 0 ? all[0] : null;
+                }
+                if (pc == null)
+                {
+                    Plugin.Log.LogWarning("[TestMode] PlayerColors not found. Cache lobby data first.");
                     return false;
                 }
-                var pc = allPC[0];
+
                 var material = pc[0].playerMaterial;
                 if (material == null)
                 {
@@ -79,15 +112,12 @@ namespace BoplMapEditor.Core
                     return false;
                 }
 
-                // Find ability icons
-                var steamMgr = SteamManager.instance;
-                if (steamMgr == null || steamMgr.abilityIcons == null)
+                var abilityIcons = _cachedAbilityIcons ?? SteamManager.instance?.abilityIcons;
+                if (abilityIcons == null)
                 {
-                    Plugin.Log.LogWarning("[TestMode] SteamManager/abilityIcons not available.");
+                    Plugin.Log.LogWarning("[TestMode] abilityIcons not found.");
                     return false;
                 }
-
-                var abilityIcons = steamMgr.abilityIcons;
 
                 // Build 1 solo player
                 var list = PlayerHandler.Get().PlayerList();
