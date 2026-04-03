@@ -67,11 +67,17 @@ namespace BoplMapEditor.Core
             SceneManager.sceneLoaded -= OnLevelLoaded;
             Plugin.Log.LogInfo($"[EditorSceneMgr] Level '{scene.name}' loaded");
 
-            // Hide platforms — sprites scanned later in EditorBootstrap after Awake() runs
             foreach (var root in scene.GetRootGameObjects())
+            {
+                // Fully disable platform GameObjects (not just sprites)
+                // — removes physics bodies and colliders from simulation
                 foreach (var srr in root.GetComponentsInChildren<StickyRoundedRectangle>(true))
-                    foreach (var sr in srr.GetComponentsInChildren<SpriteRenderer>(true))
-                        sr.enabled = false;
+                    srr.gameObject.SetActive(false);
+
+                // Disable ability/item spawners so nothing drops from the sky
+                foreach (var spawner in root.GetComponentsInChildren<AbilitySpawner>(true))
+                    spawner.gameObject.SetActive(false);
+            }
 
             var go = new GameObject("EditorBootstrap");
             go.AddComponent<EditorBootstrap>();
@@ -79,7 +85,6 @@ namespace BoplMapEditor.Core
     }
 
     // Harmony patch — skip GameSessionHandler.Init() when in editor mode
-    // This prevents player spawning and battle start while keeping visuals intact
     [HarmonyPatch(typeof(GameSessionHandler), "Init")]
     public static class GameSessionHandler_EditorPatch
     {
@@ -100,6 +105,16 @@ namespace BoplMapEditor.Core
             if (!EditorSceneManager.IsEditorScene) return true;
             Plugin.Log.LogInfo("[EditorPatch] Skipped GameSessionHandler.Awake (editor mode)");
             return false;
+        }
+    }
+
+    [HarmonyPatch(typeof(AbilitySpawner), "Awake")]
+    public static class AbilitySpawner_EditorPatch
+    {
+        static bool Prefix()
+        {
+            if (!EditorSceneManager.IsEditorScene) return true;
+            return false; // skip — no items should spawn in editor
         }
     }
 
@@ -125,10 +140,6 @@ namespace BoplMapEditor.Core
             StyleHelper.ScanAllPlatformsFromScene();
             // Try to find other type sprites from Unity's memory (no scene loading)
             StyleHelper.ScanSpritesFromMemory();
-            // Re-hide platforms (Awake may have re-enabled renderers)
-            foreach (var srr in Object.FindObjectsOfType<StickyRoundedRectangle>(true))
-                foreach (var sr in srr.GetComponentsInChildren<SpriteRenderer>(true))
-                    sr.enabled = false;
             Plugin.Log.LogInfo($"[EditorBootstrap] {StyleHelper.ScannedPlatforms.Count} platforms scanned");
 
             var blue     = StyleHelper.Blue;
