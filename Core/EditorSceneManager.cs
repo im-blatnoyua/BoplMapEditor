@@ -112,6 +112,9 @@ namespace BoplMapEditor.Core
 
             Plugin.Log.LogInfo($"[EditorSceneMgr] Level '{scene.name}' ready");
 
+            // Make level scene active so its cameras become primary
+            SceneManager.SetActiveScene(scene);
+
             // Disable only gameplay logic — keep visual systems alive
             foreach (var root in scene.GetRootGameObjects())
                 DisableGameLogic(root);
@@ -148,7 +151,6 @@ namespace BoplMapEditor.Core
             string[] killTypes = {
                 "GameSessionHandler", "PlayerHandler", "PlayerInit",
                 "AbilitySpawner", "BoplCharacter", "PlayerBody", "BoplBody",
-                "DPhysicsManager", "DetPhysics", "Updater",
             };
             foreach (var typeName in killTypes)
                 foreach (var asm in System.AppDomain.CurrentDomain.GetAssemblies())
