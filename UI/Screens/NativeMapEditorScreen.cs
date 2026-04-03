@@ -175,7 +175,15 @@ namespace BoplMapEditor.UI
 
         // ── Test mode ─────────────────────────────────────────────────────
 
-        void EnterTestMode()
+        void StartRealTest()
+        {
+            AutoSave();
+            TestModeManager.StartTest(
+                _ctrl.CurrentMap,
+                EditorSceneManager.ReturnScene);
+        }
+
+        void EnterTestMode() // visual-only fallback (kept for reference)
         {
             if (_ctrl.CurrentMap.SpawnPoints.Count == 0)
             {
@@ -350,7 +358,7 @@ namespace BoplMapEditor.UI
 
             // TEST
             var test = TopBtn(go.transform, "▶ TEST", new Color(0.10f, 0.55f, 0.20f, 1f), 100f, 52f);
-            test.onClick.AddListener(EnterTestMode);
+            test.onClick.AddListener(StartRealTest);
 
             // GRID ON/OFF
             var grid = TopBtn(go.transform, "GRID ON", new Color(0.18f, 0.45f, 0.20f, 1f), 100f, 52f);

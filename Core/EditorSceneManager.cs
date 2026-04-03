@@ -95,9 +95,10 @@ namespace BoplMapEditor.Core
     {
         static bool Prefix()
         {
-            if (!EditorSceneManager.IsEditorScene) return true; // run normally
+            if (TestModeManager.IsTestMode) return true; // test mode: let it run
+            if (!EditorSceneManager.IsEditorScene) return true;
             Plugin.Log.LogInfo("[EditorPatch] Skipped GameSessionHandler.Init (editor mode)");
-            return false; // skip
+            return false;
         }
     }
 
