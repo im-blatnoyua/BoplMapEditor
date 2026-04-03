@@ -41,7 +41,14 @@ namespace BoplMapEditor.Util
 
             // Set extents and radius via reflection (fields may be non-public)
             SetField(srr, "extents", FixConvert.ToVec2(new Vector2(data.HalfW, data.HalfH)));
-            SetField(srr, "radius", FixConvert.ToFix(data.Radius));
+
+            // Try known radius field names; log all SRR fields once to find the right one
+            if (!TrySetRadius(srr, data.Radius))
+            {
+                Plugin.Log.LogWarning("[PlatformSpawner] radius field not found. Known SRR fields:");
+                foreach (var f in srr.GetType().GetFields(BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Public))
+                    Plugin.Log.LogInfo($"  SRR field: {f.FieldType.Name} {f.Name}");
+            }
 
             // Set position and rotation via FixTransform
             var fixTrans = go.GetComponent<FixTransform>();
@@ -162,6 +169,20 @@ namespace BoplMapEditor.Util
                 });
             }
             return curve;
+        }
+
+        private static bool TrySetRadius(StickyRoundedRectangle srr, float radius)
+        {
+            string[] candidates = { "radius", "cornerRadius", "roundness", "rounding",
+                                    "bevelRadius", "_radius", "m_radius", "Radius" };
+            var fixVal = FixConvert.ToFix(radius);
+            foreach (var name in candidates)
+            {
+                var f = srr.GetType().GetField(name,
+                    BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+                if (f != null) { f.SetValue(srr, fixVal); return true; }
+            }
+            return false;
         }
 
         private static void SetField(object obj, string name, object value)

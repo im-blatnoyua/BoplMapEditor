@@ -121,13 +121,12 @@ namespace BoplMapEditor.Core
                     return false;
                 }
 
-                // Log all fields on PlayerHandler to find the real player list backing field
+                // Access the backing field directly — PlayerList() may return a copy
                 var ph = PlayerHandler.Get();
-                foreach (var f in typeof(PlayerHandler).GetFields(BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Public))
-                    Plugin.Log.LogInfo($"[TestMode] PlayerHandler field: {f.FieldType.Name} {f.Name} = {f.GetValue(ph)}");
-
-                // Build 1 solo player
-                var list = ph.PlayerList();
+                var listField = typeof(PlayerHandler).GetField("playerList",
+                    BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Public);
+                var list = listField?.GetValue(ph) as System.Collections.Generic.List<Player>
+                           ?? ph.PlayerList();
                 list.Clear();
                 var player = new Player(1, 0);
                 player.Color              = material;
@@ -144,7 +143,7 @@ namespace BoplMapEditor.Core
                 }
 
                 list.Add(player);
-                Plugin.Log.LogInfo("[TestMode] Solo player set up OK.");
+                Plugin.Log.LogInfo($"[TestMode] Solo player set up OK. PlayerList count={list.Count}");
                 return true;
             }
             catch (System.Exception ex)
@@ -183,6 +182,19 @@ namespace BoplMapEditor.Core
             {
                 Plugin.Log.LogError($"[TestMode] Spawn override failed: {ex.Message}");
             }
+        }
+    }
+
+    // Log player count when SpawnPlayers runs (debug)
+    [HarmonyPatch(typeof(GameSessionHandler), "SpawnPlayers")]
+    public static class GameSessionHandler_SpawnDebugPatch
+    {
+        static void Prefix()
+        {
+            if (!TestModeManager.IsTestMode) return;
+            var ph = PlayerHandler.Get();
+            var list = ph.PlayerList();
+            Plugin.Log.LogInfo($"[TestMode] SpawnPlayers called — PlayerList count={list.Count}");
         }
     }
 
