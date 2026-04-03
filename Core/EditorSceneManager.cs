@@ -123,6 +123,8 @@ namespace BoplMapEditor.Core
             StyleHelper.InvalidateMaterialCache();
             StyleHelper.ScanPlatformAssets();
             StyleHelper.ScanAllPlatformsFromScene();
+            // Try to find other type sprites from Unity's memory (no scene loading)
+            StyleHelper.ScanSpritesFromMemory();
             // Re-hide platforms (Awake may have re-enabled renderers)
             foreach (var srr in Object.FindObjectsOfType<StickyRoundedRectangle>(true))
                 foreach (var sr in srr.GetComponentsInChildren<SpriteRenderer>(true))

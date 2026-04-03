@@ -96,6 +96,52 @@ namespace BoplMapEditor.UI
             return _platformSprites[Mathf.Clamp(type, 0, 4)];
         }
 
+        // Scan sprites from ALL loaded assets in memory (no scene loading needed)
+        // Material names confirmed from sharedassets0: grass, snow, ice, space, robot
+        static readonly string[] _matNames = { "grass", "snow", "ice", "space", "robot" };
+
+        public static void ScanSpritesFromMemory()
+        {
+            // Try to find sprites already loaded in Unity's memory
+            var allSprites = Resources.FindObjectsOfTypeAll<Sprite>();
+            Plugin.Log.LogInfo($"[StyleHelper] Found {allSprites.Length} sprites in memory");
+
+            // Also try materials by name
+            var allMaterials = Resources.FindObjectsOfTypeAll<Material>();
+            for (int i = 0; i < _matNames.Length; i++)
+            {
+                if (_platformMaterials[i] != null) continue;
+                string name = _matNames[i];
+                foreach (var mat in allMaterials)
+                    if (mat.name.Equals(name, System.StringComparison.OrdinalIgnoreCase))
+                    {
+                        _platformMaterials[i] = mat;
+                        Plugin.Log.LogInfo($"[StyleHelper] Found material '{name}' for type {i}");
+                        break;
+                    }
+            }
+
+            // Sprites: look for any sprite whose name matches platform types
+            // or grab from the first SpriteRenderer with matching material
+            string[] spriteHints = { "grass", "snow", "ice", "space", "robot" };
+            foreach (var sp in allSprites)
+            {
+                for (int i = 0; i < spriteHints.Length; i++)
+                {
+                    if (_platformSprites[i] != null) continue;
+                    if (sp.name.ToLower().Contains(spriteHints[i]))
+                    {
+                        _platformSprites[i] = sp;
+                        Plugin.Log.LogInfo($"[StyleHelper] Found sprite '{sp.name}' for type {i}");
+                    }
+                }
+            }
+
+            int found = 0;
+            for (int i = 0; i < 5; i++) if (_platformSprites[i] != null) found++;
+            Plugin.Log.LogInfo($"[StyleHelper] Memory scan: {found}/5 sprites found");
+        }
+
         // Legacy name kept for callers that still use it
         public static void ScanPlatformMaterials() => ScanPlatformAssets();
 
