@@ -147,72 +147,7 @@ namespace BoplMapEditor.Core
                 canvasGo.transform, Plugin.Editor, blue, darkBlue, orange);
 
             screen.OpenWithMap(EditorSceneManager.PendingMap);
-
-            // Scan sprites from other level types in background (snow, space)
-            // SpriteScanner disables all cameras/renderers before first render frame
-            var scannerGo = new GameObject("SpriteScanner");
-            scannerGo.AddComponent<SpriteScanner>();
-
             Destroy(gameObject);
-        }
-    }
-
-    // Loads extra level scenes invisibly to steal platform sprites, then unloads them
-    public class SpriteScanner : MonoBehaviour
-    {
-        static readonly string[] _targets = { "Level22", "Level35" }; // snow, space
-        int _idx;
-
-        void Start()
-        {
-            SceneManager.sceneLoaded += OnLoaded;
-            LoadNext();
-        }
-
-        void LoadNext()
-        {
-            if (_idx >= _targets.Length) { Destroy(gameObject); return; }
-            try
-            {
-                SceneManager.LoadScene(_targets[_idx], LoadSceneMode.Additive);
-                Plugin.Log.LogInfo($"[SpriteScanner] Loading '{_targets[_idx]}' for sprite scan");
-            }
-            catch
-            {
-                _idx++;
-                LoadNext();
-            }
-        }
-
-        void OnLoaded(Scene scene, LoadSceneMode mode)
-        {
-            if (mode != LoadSceneMode.Additive) return;
-            SceneManager.sceneLoaded -= OnLoaded;
-
-            // Disable ALL cameras and renderers IMMEDIATELY — nothing renders
-            foreach (var root in scene.GetRootGameObjects())
-            {
-                foreach (var cam in root.GetComponentsInChildren<Camera>(true))
-                    cam.enabled = false;
-                foreach (var r in root.GetComponentsInChildren<Renderer>(true))
-                    r.enabled = false;
-            }
-
-            // Scan sprites
-            StyleHelper.ScanPlatformAssetsFromScene(scene);
-            Plugin.Log.LogInfo($"[SpriteScanner] Scanned '{scene.name}', types={StyleHelper.GetScannedTypeCount()}");
-
-            // Unload immediately
-            SceneManager.UnloadSceneAsync(scene);
-
-            _idx++;
-            SceneManager.sceneLoaded += OnLoaded;
-            LoadNext();
-        }
-
-        void OnDestroy()
-        {
-            SceneManager.sceneLoaded -= OnLoaded;
         }
     }
 }

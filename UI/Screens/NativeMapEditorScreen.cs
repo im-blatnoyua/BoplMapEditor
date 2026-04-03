@@ -41,7 +41,6 @@ namespace BoplMapEditor.UI
         // Top bar
         TextMeshProUGUI _mapNameLabel = null!;
         TextMeshProUGUI _gridLabel    = null!;
-        int _lastScannedTypeCount = 0;
 
         // Palette
         RectTransform   _paletteContent = null!;
@@ -670,17 +669,6 @@ namespace BoplMapEditor.UI
             _ctrl.SelectedPreset    = presetIdx;
             _ctrl.PlacePlatformType = matType;
             ApplySlotHighlight();
-        }
-
-        // Refresh palette when SpriteScanner loads new sprites
-        void Update()
-        {
-            int count = StyleHelper.GetScannedTypeCount();
-            if (count > _lastScannedTypeCount)
-            {
-                _lastScannedTypeCount = count;
-                RefreshPalette();
-            }
         }
 
         void ApplySlotHighlight()
