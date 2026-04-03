@@ -472,36 +472,9 @@ namespace BoplMapEditor.UI
                 return;
             }
 
-            // Cards in rows of 2 using a per-row HorizontalLayoutGroup
-            // We pair up maps into rows manually for the 2-column layout.
-            for (int i = 0; i < allMaps.Count; i += 2)
-            {
-                var rowGo = new GameObject("CardRow");
-                rowGo.transform.SetParent(_listContent, false);
-
-                var rowHlg = rowGo.AddComponent<HorizontalLayoutGroup>();
-                rowHlg.spacing               = 10f;
-                rowHlg.childForceExpandWidth  = true;
-                rowHlg.childForceExpandHeight = false;
-                rowHlg.childAlignment         = TextAnchor.UpperLeft;
-                rowGo.AddComponent<LayoutElement>().minHeight = 78f;
-
-                var (mapA, isDefaultA, fileA) = allMaps[i];
-                SpawnCard(rowGo.transform, mapA, isDefaultA, fileA);
-
-                if (i + 1 < allMaps.Count)
-                {
-                    var (mapB, isDefaultB, fileB) = allMaps[i + 1];
-                    SpawnCard(rowGo.transform, mapB, isDefaultB, fileB);
-                }
-                else
-                {
-                    // Empty cell to keep layout balanced
-                    var filler = new GameObject("Filler");
-                    filler.transform.SetParent(rowGo.transform, false);
-                    filler.AddComponent<LayoutElement>().flexibleWidth = 1;
-                }
-            }
+            // Single-column full-width cards
+            foreach (var (map, isDefault, file) in allMaps)
+                SpawnCard(_listContent, map, isDefault, file);
         }
 
         void SpawnEmptyState()
@@ -578,7 +551,7 @@ namespace BoplMapEditor.UI
             cardBtn.onClick.AddListener(() => { Close(); _editorScreen.Open(captureMap.Clone()); });
 
             var cardLe = cardGo.AddComponent<LayoutElement>();
-            cardLe.minHeight  = 78f;
+            cardLe.minHeight  = 100f;
             cardLe.flexibleWidth = 1;
 
             // Inner horizontal layout
@@ -635,7 +608,7 @@ namespace BoplMapEditor.UI
             var nameGo = new GameObject("Name");
             nameGo.transform.SetParent(textColGo.transform, false);
             var nameTmp = nameGo.AddComponent<TextMeshProUGUI>();
-            ApplyGameFont(nameTmp, 16f, bold: true);
+            ApplyGameFont(nameTmp, 22f, bold: true);
             nameTmp.text               = map.Name;
             nameTmp.color              = TextPrimary;
             nameTmp.fontStyle          = FontStyles.Bold;
@@ -649,7 +622,7 @@ namespace BoplMapEditor.UI
             var subGo = new GameObject("Sub");
             subGo.transform.SetParent(textColGo.transform, false);
             var subTmp = subGo.AddComponent<TextMeshProUGUI>();
-            ApplyGameFont(subTmp, 12f, bold: false);
+            ApplyGameFont(subTmp, 15f, bold: false);
             subTmp.text               = map.Platforms.Count + " platforms";
             subTmp.color              = TextMuted;
             subTmp.alignment          = TextAlignmentOptions.Left;

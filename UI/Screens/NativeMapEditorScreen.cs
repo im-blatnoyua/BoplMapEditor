@@ -96,9 +96,7 @@ namespace BoplMapEditor.UI
             if (_mapNameLabel != null)
                 _mapNameLabel.text = map.Name.ToUpper();
 
-            // Load a real game level scene — its cameras render sky/water/terrain
-            // through the transparent viewport area
-            BoplMapEditor.Util.BackgroundSceneLoader.Load(map.LevelTheme);
+            // TODO: load game level scene when scene names are confirmed
 
             StyleHelper.ScanPlatformAssets();
             RefreshPalette();
@@ -108,7 +106,6 @@ namespace BoplMapEditor.UI
         public void Close()
         {
             _ctrl.Close();
-            BoplMapEditor.Util.BackgroundSceneLoader.Unload();
             gameObject.SetActive(false);
             _browser.gameObject.SetActive(true);
             _browser.Refresh();
@@ -199,8 +196,6 @@ namespace BoplMapEditor.UI
 
         void BuildViewport(RectTransform root)
         {
-            // Transparent hole in the UI — game cameras render the real level
-            // (sky, water, platforms) through this area via BackgroundSceneLoader
             var go = new GameObject("Viewport");
             go.transform.SetParent(root, false);
             var rt = go.AddComponent<RectTransform>();
@@ -209,10 +204,39 @@ namespace BoplMapEditor.UI
             rt.offsetMin = new Vector2(0f, PALETTE_H);
             rt.offsetMax = new Vector2(0f, -TOP_H);
 
-            // Fully transparent — shows the game scene cameras behind
-            var img = go.AddComponent<Image>();
-            img.color        = Color.clear;
-            img.raycastTarget = false;
+            // alpha=1 so Mask stencil works — showMaskGraphic hides it visually
+            go.AddComponent<Image>().color = Color.white;
+            go.AddComponent<Mask>().showMaskGraphic = false;
+
+            // Sky gradient: two overlapping panels
+            Add(go.transform, "SkyBase", SkyBottom,
+                new Vector2(0f, WATER_FRAC), Vector2.one);
+            Add(go.transform, "SkyTopTint", new Color(SkyTop.r, SkyTop.g, SkyTop.b, 0.65f),
+                new Vector2(0f, WATER_FRAC + 0.35f), Vector2.one);
+
+            // Water
+            Add(go.transform, "Water", WaterDeep,
+                Vector2.zero, new Vector2(1f, WATER_FRAC));
+            Add(go.transform, "WaterSurf", WaterSurf,
+                new Vector2(0f, WATER_FRAC - 0.012f),
+                new Vector2(1f, WATER_FRAC + 0.008f));
+
+            // Animated shimmer
+            go.AddComponent<WaterShimmer>().Init(WATER_FRAC);
+
+            // Hint
+            var hintGo = new GameObject("Hint");
+            hintGo.transform.SetParent(go.transform, false);
+            var hintTmp = hintGo.AddComponent<TextMeshProUGUI>();
+            ApplyFont(hintTmp, 18f, false);
+            hintTmp.text          = "DRAG ISLANDS HERE";
+            hintTmp.color         = new Color(1f, 1f, 1f, 0.22f);
+            hintTmp.alignment     = TextAlignmentOptions.Center;
+            hintTmp.raycastTarget = false;
+            var hrt = hintGo.GetComponent<RectTransform>();
+            hrt.anchorMin = new Vector2(0.15f, WATER_FRAC + 0.1f);
+            hrt.anchorMax = new Vector2(0.85f, WATER_FRAC + 0.25f);
+            hrt.offsetMin = hrt.offsetMax = Vector2.zero;
         }
 
         // ── Palette (horizontal scroll) ───────────────────────────────────

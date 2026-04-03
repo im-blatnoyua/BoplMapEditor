@@ -86,40 +86,10 @@ namespace BoplMapEditor.Patches
         static void CreateButton(GameObject? joinSource, Canvas canvas,
                                  Color blue, Color darkBlue, Color orange)
         {
-            GameObject btnGo;
-
-            if (joinSource != null)
-            {
-                // Clone joinColor — the "CLICK TO JOIN!" button, always visible + game-styled
-                btnGo = Object.Instantiate(joinSource, canvas.transform, false);
-                btnGo.name = TAG;
-
-                // Remove any game-logic components
-                foreach (var comp in btnGo.GetComponentsInChildren<MonoBehaviour>(true))
-                {
-                    var t = comp.GetType().Name;
-                    if (t != "Image" && t != "Button" && t != "TextMeshProUGUI"
-                        && t != "RectTransform" && t != "CanvasRenderer")
-                        Object.Destroy(comp);
-                }
-                foreach (var et in btnGo.GetComponentsInChildren<EventTrigger>(true))
-                    Object.Destroy(et);
-
-                // Set label text
-                foreach (var tmp in btnGo.GetComponentsInChildren<TextMeshProUGUI>(true))
-                {
-                    tmp.text = "MAP EDITOR";
-                    Plugin.Log.LogInfo($"[LobbyButtonPatch] Label set: {tmp.gameObject.name}");
-                }
-
-                Plugin.Log.LogInfo("[LobbyButtonPatch] Cloned joinColor button.");
-            }
-            else
-            {
-                // Fallback: build from scratch using game button sprite if available
-                btnGo = BuildFallbackButton(canvas.transform, blue);
-                Plugin.Log.LogInfo("[LobbyButtonPatch] Using fallback button.");
-            }
+            // Always build from scratch — use game's button sprite if available,
+            // so the button looks native but is the right size
+            var btnGo = BuildFallbackButton(canvas.transform, blue);
+            Plugin.Log.LogInfo("[LobbyButtonPatch] Button built with game sprite.");
 
             // ── Position: anchor to bottom-left, always visible ───────────
             var rt = btnGo.GetComponent<RectTransform>();
@@ -127,7 +97,7 @@ namespace BoplMapEditor.Patches
             rt.anchorMin        = new Vector2(0f, 0f);
             rt.anchorMax        = new Vector2(0f, 0f);
             rt.pivot            = new Vector2(0f, 0f);
-            rt.sizeDelta        = new Vector2(200f, 56f);
+            rt.sizeDelta        = new Vector2(280f, 80f);
             rt.anchoredPosition = new Vector2(20f, 20f);
 
             // ── Wire click ────────────────────────────────────────────────
@@ -149,25 +119,28 @@ namespace BoplMapEditor.Patches
             var go  = new GameObject(TAG);
             go.transform.SetParent(parent, false);
 
-            var img    = go.AddComponent<Image>();
-            img.color  = blue;
-            img.sprite = StyleHelper.MakeRoundedSprite();
+            var img   = go.AddComponent<Image>();
+            // Prefer real game sprite, fall back to our procedural one
+            var gameSprite = StyleHelper.GetGameButtonSprite();
+            img.sprite = gameSprite ?? StyleHelper.MakeRoundedSprite();
             img.type   = Image.Type.Sliced;
+            img.color  = blue;
 
             go.AddComponent<Button>();
 
             var lblGo = new GameObject("Label");
             lblGo.transform.SetParent(go.transform, false);
             var tmp = lblGo.AddComponent<TextMeshProUGUI>();
-            tmp.text      = "Map Editor";
-            tmp.fontSize  = 16f;
-            tmp.fontStyle = FontStyles.Bold;
+            tmp.text      = "MAP EDITOR";
+            tmp.fontSize  = 22f;
+            tmp.fontStyle = FontStyles.Bold | FontStyles.UpperCase;
             tmp.alignment = TextAlignmentOptions.Center;
             tmp.color     = Color.white;
+            tmp.enableWordWrapping = false;
             tmp.raycastTarget = false;
             var lrt = lblGo.GetComponent<RectTransform>();
             lrt.anchorMin = Vector2.zero; lrt.anchorMax = Vector2.one;
-            lrt.offsetMin = Vector2.zero; lrt.offsetMax = Vector2.zero;
+            lrt.offsetMin = new Vector2(8f, 0f); lrt.offsetMax = new Vector2(-8f, 0f);
 
             return go;
         }
