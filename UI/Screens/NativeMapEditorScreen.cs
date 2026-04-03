@@ -1,8 +1,10 @@
 using BoplMapEditor.Core;
 using BoplMapEditor.Data;
+using System.Collections;
 using System.Collections.Generic;
 using TMPro;
 using UnityEngine;
+using UnityEngine.EventSystems;
 using UnityEngine.UI;
 
 namespace BoplMapEditor.UI
@@ -45,7 +47,20 @@ namespace BoplMapEditor.UI
         // Palette
         RectTransform   _paletteContent = null!;
         int             _selectedSlot   = 0;
+        float           _selectedHalfW  = 6f;
+        float           _selectedHalfH  = 1.5f;
+        Sprite?         _selectedSprite;
         readonly List<PaletteItem> _items = new List<PaletteItem>();
+
+        // Viewport for coordinate conversion and platform widgets
+        RectTransform   _viewportRt  = null!;
+        Transform       _widgetRoot  = null!;
+
+        // Game world bounds (from SceneBounds)
+        const float WORLD_X_MIN = -97.27f;
+        const float WORLD_X_MAX =  97.6f;
+        const float WORLD_Y_MIN = -26f;
+        const float WORLD_Y_MAX =  40f;
 
         struct PaletteItem
         {
@@ -121,6 +136,8 @@ namespace BoplMapEditor.UI
             StyleHelper.ScanPlatformAssets();
             RefreshPalette();
             gameObject.SetActive(true);
+            // Draw existing platforms
+            StartCoroutine(RebuildWidgets());
         }
 
         public void Close()
@@ -232,11 +249,95 @@ namespace BoplMapEditor.UI
             rt.offsetMin = new Vector2(0f, PALETTE_H);
             rt.offsetMax = new Vector2(0f, -TOP_H);
 
-            // Transparent — Level1 cameras (depth=1) render below this
-            // ScreenSpaceOverlay canvas and show through transparent pixels
+            // Transparent background — shows game scene cameras below
             var img = go.AddComponent<Image>();
             img.color        = Color.clear;
-            img.raycastTarget = false;
+            img.raycastTarget = true; // needed to receive clicks
+
+            // Root for placed platform widgets
+            var widgetRootGo = new GameObject("WidgetRoot");
+            widgetRootGo.transform.SetParent(go.transform, false);
+            var wrRt = widgetRootGo.AddComponent<RectTransform>();
+            wrRt.anchorMin = Vector2.zero; wrRt.anchorMax = Vector2.one;
+            wrRt.offsetMin = wrRt.offsetMax = Vector2.zero;
+            _widgetRoot = widgetRootGo.transform;
+
+            // Click to place
+            var trigger = go.AddComponent<EventTrigger>();
+            var click   = new EventTrigger.Entry { eventID = EventTriggerType.PointerClick };
+            click.callback.AddListener(OnViewportClick);
+            trigger.triggers.Add(click);
+
+            _viewportRt = rt;
+        }
+
+        void OnViewportClick(UnityEngine.EventSystems.BaseEventData data)
+        {
+            if (!(data is UnityEngine.EventSystems.PointerEventData ped)) return;
+
+            // Convert screen position to viewport local position
+            Vector2 localPos;
+            RectTransformUtility.ScreenPointToLocalPointInRectangle(
+                _viewportRt, ped.position,
+                null, // null = ScreenSpaceOverlay camera
+                out localPos);
+
+            // Normalize to [0,1]
+            var size = _viewportRt.rect.size;
+            float nx = (localPos.x - _viewportRt.rect.xMin) / size.x;
+            float ny = (localPos.y - _viewportRt.rect.yMin) / size.y;
+
+            // Map to game world coordinates
+            float worldX = WORLD_X_MIN + nx * (WORLD_X_MAX - WORLD_X_MIN);
+            float worldY = WORLD_Y_MIN + ny * (WORLD_Y_MAX - WORLD_Y_MIN);
+
+            // Apply grid snap
+            worldX = _ctrl.SnapToGrid
+                ? Mathf.Round(worldX / _ctrl.GridSize) * _ctrl.GridSize : worldX;
+            worldY = _ctrl.SnapToGrid
+                ? Mathf.Round(worldY / _ctrl.GridSize) * _ctrl.GridSize : worldY;
+
+            // Add platform to map data
+            var pd = new BoplMapEditor.Data.PlatformData(
+                worldX, worldY,
+                _selectedHalfW, _selectedHalfH,
+                1.2f, 0f,
+                _ctrl.PlacePlatformType);
+            _ctrl.CurrentMap.Platforms.Add(pd);
+
+            // Spawn visual widget in viewport
+            SpawnWidget(pd);
+
+            Plugin.Log.LogInfo($"[Editor] Placed platform at ({worldX:F1},{worldY:F1}) hw={_selectedHalfW} mat={_ctrl.PlacePlatformType}");
+        }
+
+        void SpawnWidget(BoplMapEditor.Data.PlatformData pd)
+        {
+            var go = new GameObject("Widget");
+            go.transform.SetParent(_widgetRoot, false);
+
+            var img   = go.AddComponent<Image>();
+            img.sprite = _selectedSprite ?? StyleHelper.MakeRoundedSprite();
+            img.type   = Image.Type.Sliced;
+            img.color  = _selectedSprite != null
+                ? Color.white
+                : StyleHelper.PlatformColors[Mathf.Clamp(_ctrl.PlacePlatformType, 0, 4)];
+
+            // Convert world size to viewport canvas size
+            var vSize  = _viewportRt.rect.size;
+            float ww   = (pd.HalfW * 2f) / (WORLD_X_MAX - WORLD_X_MIN) * vSize.x;
+            float wh   = (pd.HalfH * 2f) / (WORLD_Y_MAX - WORLD_Y_MIN) * vSize.y;
+
+            // Convert world position to viewport canvas position
+            float cx = (pd.X - WORLD_X_MIN) / (WORLD_X_MAX - WORLD_X_MIN) * vSize.x
+                       + _viewportRt.rect.xMin;
+            float cy = (pd.Y - WORLD_Y_MIN) / (WORLD_Y_MAX - WORLD_Y_MIN) * vSize.y
+                       + _viewportRt.rect.yMin;
+
+            var rt = go.GetComponent<RectTransform>();
+            rt.anchorMin = rt.anchorMax = rt.pivot = new Vector2(0.5f, 0.5f);
+            rt.sizeDelta = new Vector2(Mathf.Max(ww, 8f), Mathf.Max(wh, 4f));
+            rt.anchoredPosition = new Vector2(cx, cy);
         }
 
         // ── Palette (horizontal scroll) ───────────────────────────────────
@@ -353,6 +454,9 @@ namespace BoplMapEditor.UI
                 {
                     _selectedSlot          = idx;
                     _ctrl.PlacePlatformType = entry.MaterialType;
+                    _selectedHalfW         = entry.HalfW > 0 ? entry.HalfW : 6f;
+                    _selectedHalfH         = entry.HalfH > 0 ? entry.HalfH : 1.5f;
+                    _selectedSprite        = entry.Sprite;
                     ApplySlotHighlight();
                 });
                 _items.Add(item);
@@ -632,6 +736,22 @@ namespace BoplMapEditor.UI
             _ctrl.SelectedPreset    = presetIdx;
             _ctrl.PlacePlatformType = matType;
             ApplySlotHighlight();
+        }
+
+        System.Collections.IEnumerator RebuildWidgets()
+        {
+            yield return null; // wait one frame for layout
+            if (_widgetRoot == null) yield break;
+            foreach (Transform c in _widgetRoot) Destroy(c.gameObject);
+            foreach (var pd in _ctrl.CurrentMap.Platforms)
+            {
+                _selectedSprite = StyleHelper.GetPlatformSprite(
+                    Mathf.Clamp(pd.Type, 0, 4));
+                SpawnWidget(pd);
+            }
+            // Restore selected sprite from current slot
+            if (_items.Count > _selectedSlot)
+                _selectedSprite = _items[_selectedSlot].ThumbShape?.sprite;
         }
 
         void ApplySlotHighlight()
