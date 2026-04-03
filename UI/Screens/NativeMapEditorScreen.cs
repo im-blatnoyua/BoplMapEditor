@@ -56,6 +56,12 @@ namespace BoplMapEditor.UI
         RectTransform   _viewportRt  = null!;
         Transform       _widgetRoot  = null!;
 
+        // Test mode
+        bool              _testMode;
+        GameObject        _editorUI    = null!; // topbar + palette wrapper
+        GameObject        _testOverlay = null!;
+        TestModeController? _testCtrl;
+
         // Tabs
         int             _activeTab      = 0; // 0=Islands, 1=Spawns
         int             _selectedSpawnId = 1; // 1-4
@@ -167,6 +173,97 @@ namespace BoplMapEditor.UI
             }
         }
 
+        // ── Test mode ─────────────────────────────────────────────────────
+
+        void EnterTestMode()
+        {
+            if (_ctrl.CurrentMap.SpawnPoints.Count == 0)
+            {
+                Plugin.Log.LogWarning("[Editor] No spawn points — add at least 1 before testing");
+                return;
+            }
+
+            _testMode = true;
+
+            // Hide editor panels
+            foreach (Transform c in transform)
+                if (c.name is "TopBar" or "Palette" or "EditorUI")
+                    c.gameObject.SetActive(false);
+
+            // Find spawn 1 canvas position
+            var sp = _ctrl.CurrentMap.SpawnPoints.Find(s => s.PlayerId == 1)
+                  ?? _ctrl.CurrentMap.SpawnPoints[0];
+            var vSize = _viewportRt.rect.size;
+            float cx = (sp.X - WORLD_X_MIN) / (WORLD_X_MAX - WORLD_X_MIN) * vSize.x
+                       + _viewportRt.rect.xMin;
+            float cy = (sp.Y - WORLD_Y_MIN) / (WORLD_Y_MAX - WORLD_Y_MIN) * vSize.y
+                       + _viewportRt.rect.yMin;
+
+            // Collect platform rects
+            var platRects = new System.Collections.Generic.List<RectTransform>();
+            foreach (Transform child in _widgetRoot)
+                if (child.name.StartsWith("Widget"))
+                    platRects.Add(child.GetComponent<RectTransform>());
+
+            // Spawn test character
+            _testCtrl = TestModeController.Create(
+                _widgetRoot, new Vector2(cx, cy), platRects);
+
+            // Exit overlay
+            _testOverlay = new GameObject("TestOverlay");
+            _testOverlay.transform.SetParent(transform, false);
+            var oRt = _testOverlay.AddComponent<RectTransform>();
+            oRt.anchorMin = new Vector2(0f, 1f); oRt.anchorMax = Vector2.one;
+            oRt.offsetMin = new Vector2(0f, -80f); oRt.offsetMax = Vector2.zero;
+
+            _testOverlay.AddComponent<Image>().color = new Color(0f, 0f, 0f, 0.55f);
+
+            var hlg = _testOverlay.AddComponent<HorizontalLayoutGroup>();
+            hlg.childAlignment = TextAnchor.MiddleCenter;
+            hlg.padding = new RectOffset(20, 20, 10, 10); hlg.spacing = 20;
+            hlg.childForceExpandHeight = true; hlg.childForceExpandWidth = false;
+
+            // "TESTING" label
+            var lblGo = new GameObject("Lbl"); lblGo.transform.SetParent(_testOverlay.transform, false);
+            var lbl = lblGo.AddComponent<TextMeshProUGUI>();
+            ApplyFont(lbl, 22f, true); lbl.text = "▶ TESTING   WASD / ARROWS to move   SPACE to jump";
+            lbl.color = new Color(0.4f, 1f, 0.4f); lbl.raycastTarget = false;
+            lblGo.AddComponent<LayoutElement>().flexibleWidth = 1;
+
+            // EXIT button
+            var exitGo = new GameObject("Exit"); exitGo.transform.SetParent(_testOverlay.transform, false);
+            var exitImg = exitGo.AddComponent<Image>();
+            exitImg.color = new Color(0.8f, 0.2f, 0.2f); exitImg.sprite = StyleHelper.MakeRoundedSprite();
+            exitImg.type = Image.Type.Sliced;
+            var exitBtn = exitGo.AddComponent<Button>();
+            exitBtn.onClick.AddListener(ExitTestMode);
+            exitGo.AddComponent<LayoutElement>().minWidth = 120f;
+            var elGo = new GameObject("L"); elGo.transform.SetParent(exitGo.transform, false);
+            var eTmp = elGo.AddComponent<TextMeshProUGUI>();
+            ApplyFont(eTmp, 18f, true); eTmp.text = "■ EXIT"; eTmp.alignment = TextAlignmentOptions.Center;
+            eTmp.raycastTarget = false;
+            var elrt = elGo.GetComponent<RectTransform>();
+            elrt.anchorMin = Vector2.zero; elrt.anchorMax = Vector2.one;
+            elrt.offsetMin = elrt.offsetMax = Vector2.zero;
+
+            Plugin.Log.LogInfo("[Editor] Entered test mode");
+        }
+
+        void ExitTestMode()
+        {
+            _testMode = false;
+
+            if (_testCtrl != null) { Destroy(_testCtrl.gameObject); _testCtrl = null; }
+            if (_testOverlay != null) { Destroy(_testOverlay); _testOverlay = null; }
+
+            // Restore editor panels
+            foreach (Transform c in transform)
+                if (c.name is "TopBar" or "Palette" or "EditorUI")
+                    c.gameObject.SetActive(true);
+
+            Plugin.Log.LogInfo("[Editor] Exited test mode");
+        }
+
         void AutoSave()
         {
             if (_ctrl.CurrentMap == null) return;
@@ -185,7 +282,14 @@ namespace BoplMapEditor.UI
 
         void BuildUI(RectTransform root)
         {
-            BuildTopBar(root);
+            // Wrapper for editor chrome (hidden during test mode)
+            _editorUI = new GameObject("EditorUI");
+            _editorUI.transform.SetParent(root, false);
+            var euiRt = _editorUI.AddComponent<RectTransform>();
+            euiRt.anchorMin = Vector2.zero; euiRt.anchorMax = Vector2.one;
+            euiRt.offsetMin = euiRt.offsetMax = Vector2.zero;
+
+            BuildTopBar(root); // still on root (handles z-order)
             BuildViewport(root);
             BuildPalette(root);
         }
@@ -243,6 +347,10 @@ namespace BoplMapEditor.UI
 
             var redo = TopBtn(go.transform, "REDO", _blue, 80f, 52f);
             redo.onClick.AddListener(() => _ctrl.History.Redo());
+
+            // TEST
+            var test = TopBtn(go.transform, "▶ TEST", new Color(0.10f, 0.55f, 0.20f, 1f), 100f, 52f);
+            test.onClick.AddListener(EnterTestMode);
 
             // GRID ON/OFF
             var grid = TopBtn(go.transform, "GRID ON", new Color(0.18f, 0.45f, 0.20f, 1f), 100f, 52f);
