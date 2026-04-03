@@ -123,11 +123,15 @@ namespace BoplMapEditor.Core
             StyleHelper.InvalidateMaterialCache();
             StyleHelper.ScanPlatformAssets();
             StyleHelper.ScanAllPlatformsFromScene();
-            // Re-hide platforms (Awake may have re-enabled renderers)
+
+            // Also scan snow and space levels additively to get their sprites
+            ScanAdditionalLevelSprites();
+
+            // Re-hide all platforms
             foreach (var srr in Object.FindObjectsOfType<StickyRoundedRectangle>(true))
                 foreach (var sr in srr.GetComponentsInChildren<SpriteRenderer>(true))
                     sr.enabled = false;
-            Plugin.Log.LogInfo($"[EditorBootstrap] {StyleHelper.ScannedPlatforms.Count} platforms scanned");
+            Plugin.Log.LogInfo($"[EditorBootstrap] {StyleHelper.ScannedPlatforms.Count} platforms, {StyleHelper.GetScannedTypeCount()} types");
 
             var blue     = StyleHelper.Blue;
             var darkBlue = StyleHelper.DarkBlue;
@@ -148,6 +152,41 @@ namespace BoplMapEditor.Core
 
             screen.OpenWithMap(EditorSceneManager.PendingMap);
             Destroy(gameObject);
+        }
+
+        // Load snow + space levels briefly to steal their platform sprites, then unload
+        void ScanAdditionalLevelSprites()
+        {
+            // Snow: Level22 has unique snow platforms
+            // Space: Level35 has unique space platforms
+            string[] additional = { "Level22", "Level35" };
+            foreach (var sceneName in additional)
+            {
+                try
+                {
+                    SceneManager.LoadScene(sceneName, LoadSceneMode.Additive);
+                    // sceneLoaded fires synchronously on same frame in some Unity versions,
+                    // but we need to wait — use a callback instead
+                    SceneManager.sceneLoaded += OnAdditionalSceneLoaded;
+                }
+                catch (System.Exception ex)
+                {
+                    Plugin.Log.LogWarning($"[EditorBootstrap] Could not load '{sceneName}' for sprite scan: {ex.Message}");
+                }
+            }
+        }
+
+        static void OnAdditionalSceneLoaded(Scene scene, LoadSceneMode mode)
+        {
+            if (mode != LoadSceneMode.Additive) return;
+            SceneManager.sceneLoaded -= OnAdditionalSceneLoaded;
+
+            // Scan sprites from this scene
+            StyleHelper.ScanPlatformAssetsFromScene(scene);
+
+            // Immediately unload — we only needed the sprites
+            SceneManager.UnloadSceneAsync(scene);
+            Plugin.Log.LogInfo($"[EditorBootstrap] Scanned + unloaded '{scene.name}'");
         }
     }
 }

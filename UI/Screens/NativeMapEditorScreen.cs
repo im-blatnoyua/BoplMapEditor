@@ -394,9 +394,13 @@ namespace BoplMapEditor.UI
             float hw     = Mathf.Max(entry.HalfW, 0.1f);
             float hh     = Mathf.Max(entry.HalfH, 0.1f);
             float aspect = hw / hh;
-            float isoH   = Mathf.Min(maxH, 60f);
-            float isoW   = Mathf.Clamp(aspect * isoH, 20f, maxW);
-            float cardW  = isoW + 20f; // padding
+            float scaleByW = maxW / (hw * 2f);
+            float scaleByH = maxH / (hh * 2f);
+            float scale    = Mathf.Min(scaleByW, scaleByH);
+            
+            float isoW = Mathf.Clamp(hw * 2f * scale, 24f, maxW);
+            float isoH = Mathf.Clamp(hh * 2f * scale, 16f, maxH);
+            float cardW = Mathf.Max(isoW + 20f, 60f);
 
             var go = new GameObject("Island");
             go.transform.SetParent(parent, false);

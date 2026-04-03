@@ -96,6 +96,27 @@ namespace BoplMapEditor.UI
             return _platformSprites[Mathf.Clamp(type, 0, 4)];
         }
 
+        public static int GetScannedTypeCount()
+        {
+            int n = 0;
+            for (int i = 0; i < 5; i++) if (_platformSprites[i] != null) n++;
+            return n;
+        }
+
+        public static void ScanPlatformAssetsFromScene(UnityEngine.SceneManagement.Scene scene)
+        {
+            foreach (var root in scene.GetRootGameObjects())
+                foreach (var p in root.GetComponentsInChildren<StickyRoundedRectangle>(true))
+                {
+                    int t = (int)p.platformType;
+                    if (t < 0 || t >= 5) continue;
+                    var sr = p.GetComponent<SpriteRenderer>();
+                    if (sr == null) continue;
+                    if (_platformMaterials[t] == null && sr.material != null) _platformMaterials[t] = sr.material;
+                    if (_platformSprites[t] == null && sr.sprite != null) _platformSprites[t] = sr.sprite;
+                }
+        }
+
         // Legacy name kept for callers that still use it
         public static void ScanPlatformMaterials() => ScanPlatformAssets();
 
