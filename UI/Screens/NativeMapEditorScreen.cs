@@ -206,39 +206,11 @@ namespace BoplMapEditor.UI
             rt.offsetMin = new Vector2(0f, PALETTE_H);
             rt.offsetMax = new Vector2(0f, -TOP_H);
 
-            // alpha=1 so Mask stencil works — showMaskGraphic hides it visually
-            go.AddComponent<Image>().color = Color.white;
-            go.AddComponent<Mask>().showMaskGraphic = false;
-
-            // Sky gradient: two overlapping panels
-            Add(go.transform, "SkyBase", SkyBottom,
-                new Vector2(0f, WATER_FRAC), Vector2.one);
-            Add(go.transform, "SkyTopTint", new Color(SkyTop.r, SkyTop.g, SkyTop.b, 0.65f),
-                new Vector2(0f, WATER_FRAC + 0.35f), Vector2.one);
-
-            // Water
-            Add(go.transform, "Water", WaterDeep,
-                Vector2.zero, new Vector2(1f, WATER_FRAC));
-            Add(go.transform, "WaterSurf", WaterSurf,
-                new Vector2(0f, WATER_FRAC - 0.012f),
-                new Vector2(1f, WATER_FRAC + 0.008f));
-
-            // Animated shimmer
-            go.AddComponent<WaterShimmer>().Init(WATER_FRAC);
-
-            // Hint
-            var hintGo = new GameObject("Hint");
-            hintGo.transform.SetParent(go.transform, false);
-            var hintTmp = hintGo.AddComponent<TextMeshProUGUI>();
-            ApplyFont(hintTmp, 18f, false);
-            hintTmp.text          = "DRAG ISLANDS HERE";
-            hintTmp.color         = new Color(1f, 1f, 1f, 0.22f);
-            hintTmp.alignment     = TextAlignmentOptions.Center;
-            hintTmp.raycastTarget = false;
-            var hrt = hintGo.GetComponent<RectTransform>();
-            hrt.anchorMin = new Vector2(0.15f, WATER_FRAC + 0.1f);
-            hrt.anchorMax = new Vector2(0.85f, WATER_FRAC + 0.25f);
-            hrt.offsetMin = hrt.offsetMax = Vector2.zero;
+            // Transparent — game scene cameras (depth=-5) render through this area.
+            // ScreenSpaceOverlay canvas renders on top, viewport hole shows game scene.
+            var vpImg = go.AddComponent<Image>();
+            vpImg.color        = Color.clear;
+            vpImg.raycastTarget = false;
         }
 
         // ── Palette (horizontal scroll) ───────────────────────────────────

@@ -144,8 +144,10 @@ namespace BoplMapEditor.Util
             {
                 foreach (var cam in root.GetComponentsInChildren<Camera>(true))
                 {
-                    cam.depth = 10f; // higher than typical lobby camera (depth 0)
-                    Plugin.Log.LogInfo($"[BackgroundSceneLoader] Set camera '{cam.name}' depth=10");
+                    // depth=-5: renders BEFORE the UI canvas so ScreenSpaceOverlay sits on top.
+                    // Transparent viewport area in the canvas then shows this camera's output.
+                    cam.depth = -5f;
+                    Plugin.Log.LogInfo($"[BackgroundSceneLoader] Set camera '{cam.name}' depth=-5");
                 }
             }
 
