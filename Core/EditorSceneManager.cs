@@ -8,8 +8,9 @@ namespace BoplMapEditor.Core
 {
     public static class EditorSceneManager
     {
-        public static bool     IsEditorScene { get; private set; }
-        public static MapData? PendingMap    { get; private set; }
+        public static bool     IsEditorScene  { get; private set; }
+        public static MapData? PendingMap     { get; private set; }
+        public static string   ReturnScene    { get; set; } = "CharacterSelect";
 
         static Canvas? _hiddenLobbyCanvas;
 
@@ -57,8 +58,8 @@ namespace BoplMapEditor.Core
         {
             IsEditorScene = false;
             PendingMap    = null;
-            SceneManager.LoadScene("CharacterSelect");
-            Plugin.Log.LogInfo("[EditorSceneMgr] → CharacterSelect");
+            SceneManager.LoadScene(ReturnScene);
+            Plugin.Log.LogInfo($"[EditorSceneMgr] → {ReturnScene}");
         }
 
         static void OnLevelLoaded(Scene scene, LoadSceneMode mode)

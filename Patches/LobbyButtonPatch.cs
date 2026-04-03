@@ -22,6 +22,7 @@ namespace BoplMapEditor.Patches
             Color darkBlue = LobbyButtonHelper.GetField<Color>(__instance, "darkBlue") ?? new Color(0.10f, 0.22f, 0.50f, 1f);
             Color orange   = LobbyButtonHelper.GetField<Color>(__instance, "orange")   ?? new Color(0.95f, 0.55f, 0.10f, 1f);
 
+            BoplMapEditor.Core.EditorSceneManager.ReturnScene = "CharacterSelect";
             LobbyButtonHelper.Inject(joinSource?.gameObject, __instance.gameObject, blue, darkBlue, orange);
         }
     }
@@ -37,6 +38,7 @@ namespace BoplMapEditor.Patches
             Color darkBlue = LobbyButtonHelper.GetField<Color>(__instance, "darkBlue") ?? new Color(0.10f, 0.22f, 0.50f, 1f);
             Color orange   = LobbyButtonHelper.GetField<Color>(__instance, "orange")   ?? new Color(0.95f, 0.55f, 0.10f, 1f);
 
+            BoplMapEditor.Core.EditorSceneManager.ReturnScene = "ChSelect_online";
             LobbyButtonHelper.Inject(null, __instance.gameObject, blue, darkBlue, orange);
         }
     }
