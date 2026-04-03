@@ -308,7 +308,7 @@ namespace BoplMapEditor.UI
             vpRt.anchorMin = Vector2.zero;
             vpRt.anchorMax = Vector2.one;
             vpRt.offsetMin = vpRt.offsetMax = Vector2.zero;
-            vpGo.AddComponent<Image>().color = Color.clear;
+            vpGo.AddComponent<Image>().color = Color.white; // must be >0 for Mask stencil
             vpGo.AddComponent<Mask>().showMaskGraphic = false;
             scroll.viewport = vpRt;
 
