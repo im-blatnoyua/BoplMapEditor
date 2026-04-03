@@ -334,36 +334,108 @@ namespace BoplMapEditor.UI
             _paletteContent = contentRt;
         }
 
-        // Populates items — called on Open() after ScanPlatformAssets()
         void RefreshPalette()
         {
             foreach (Transform c in _paletteContent) Destroy(c.gameObject);
             _items.Clear();
             _selectedSlot = 0;
 
-            string[] presetNames = { "WIDE", "MED", "SMALL", "ROUND", "NORM", "LONG" };
+            var scanned = StyleHelper.ScannedPlatforms;
 
-            int slot = 0;
-            for (int mat = 0; mat < 6; mat++)
+            if (scanned.Count > 0)
             {
-                for (int pi = 0; pi < MapEditorController.IslandPresets.Length; pi++)
+                // Show real platforms from the loaded scene
+                for (int i = 0; i < scanned.Count; i++)
                 {
-                    int captureSlot = slot;
-                    int captureMat  = mat;
-                    int capturePI   = pi;
-
-                    var preset = MapEditorController.IslandPresets[pi];
-                    var item   = BuildPaletteItem(_paletteContent, preset, presetNames[pi], mat,
-                                                  captureSlot == _selectedSlot);
-                    item.ThumbBg.GetComponent<Button>().onClick.AddListener(
-                        () => SelectSlot(captureSlot, capturePI, captureMat));
-
+                    int captureSlot = i;
+                    var entry = scanned[i];
+                    var item  = BuildScannedItem(_paletteContent, entry, i == 0);
+                    item.ThumbBg.GetComponent<Button>().onClick.AddListener(() =>
+                    {
+                        _selectedSlot           = captureSlot;
+                        _ctrl.PlacePlatformType  = entry.MaterialType;
+                        ApplySlotHighlight();
+                    });
                     _items.Add(item);
-                    slot++;
                 }
+            }
+            else
+            {
+                // Fallback: preset × material grid
+                string[] names = { "WIDE", "MED", "SMALL", "ROUND", "NORM", "LONG" };
+                int slot = 0;
+                for (int mat = 0; mat < 6; mat++)
+                    for (int pi = 0; pi < MapEditorController.IslandPresets.Length; pi++, slot++)
+                    {
+                        int cs = slot, cm = mat, cp = pi;
+                        var item = BuildPaletteItem(_paletteContent,
+                            MapEditorController.IslandPresets[pi], names[pi], mat, slot == 0);
+                        item.ThumbBg.GetComponent<Button>().onClick.AddListener(
+                            () => SelectSlot(cs, cp, cm));
+                        _items.Add(item);
+                    }
             }
 
             ApplySlotHighlight();
+        }
+
+        PaletteItem BuildScannedItem(RectTransform parent, StyleHelper.PlatformEntry entry, bool selected)
+        {
+            var go = new GameObject("ScannedIsland");
+            go.transform.SetParent(parent, false);
+
+            var bgImg = go.AddComponent<Image>();
+            bgImg.sprite = StyleHelper.MakeRoundedSprite();
+            bgImg.type   = Image.Type.Sliced;
+            bgImg.color  = selected ? ItemSel : ItemNorm;
+
+            go.AddComponent<LayoutElement>().minWidth = ITEM_W;
+            go.GetComponent<LayoutElement>().flexibleHeight = 1;
+            go.AddComponent<Button>();
+
+            // Actual platform sprite, scaled to fit card
+            float maxW = 74f, maxH = 46f;
+            float hw = Mathf.Max(entry.HalfW, 0.1f);
+            float hh = Mathf.Max(entry.HalfH, 0.1f);
+            float s  = Mathf.Min(maxW / (hw * 2f), maxH / (hh * 2f));
+            float tw = hw * 2f * s;
+            float th = hh * 2f * s;
+
+            var shapeGo = new GameObject("Shape");
+            shapeGo.transform.SetParent(go.transform, false);
+            var shapeImg = shapeGo.AddComponent<Image>();
+            shapeImg.raycastTarget = false;
+            if (entry.Sprite != null)
+            {
+                shapeImg.sprite = entry.Sprite;
+                shapeImg.type   = Image.Type.Sliced;
+                shapeImg.color  = Color.white;
+            }
+            else
+            {
+                shapeImg.sprite = StyleHelper.MakeRoundedSprite();
+                shapeImg.type   = Image.Type.Sliced;
+                shapeImg.color  = entry.Color;
+            }
+            var srt = shapeGo.GetComponent<RectTransform>();
+            srt.anchorMin = srt.anchorMax = srt.pivot = new Vector2(0.5f, 0.5f);
+            srt.sizeDelta = new Vector2(Mathf.Max(tw, 8f), Mathf.Max(th, 4f));
+            srt.anchoredPosition = new Vector2(0f, 8f);
+
+            // Material color dot
+            var dotGo = new GameObject("Dot");
+            dotGo.transform.SetParent(go.transform, false);
+            var dotImg = dotGo.AddComponent<Image>();
+            dotImg.color        = StyleHelper.PlatformColors[Mathf.Clamp(entry.MaterialType, 0, 5)];
+            dotImg.sprite       = StyleHelper.MakeRoundedSpriteSmall();
+            dotImg.type         = Image.Type.Sliced;
+            dotImg.raycastTarget = false;
+            var drt = dotGo.GetComponent<RectTransform>();
+            drt.anchorMin = drt.anchorMax = drt.pivot = new Vector2(1f, 1f);
+            drt.sizeDelta = new Vector2(14f, 14f);
+            drt.anchoredPosition = new Vector2(-4f, -4f);
+
+            return new PaletteItem { MaterialType = entry.MaterialType, ThumbBg = bgImg, ThumbShape = shapeImg };
         }
 
         PaletteItem BuildPaletteItem(RectTransform parent, IslandPreset preset,

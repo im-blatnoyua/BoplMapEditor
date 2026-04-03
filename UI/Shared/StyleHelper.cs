@@ -129,6 +129,50 @@ namespace BoplMapEditor.UI
         {
             _platformsScanned = false;
             for (int i = 0; i < 6; i++) { _platformMaterials[i] = null; _platformSprites[i] = null; }
+            _scannedPlatforms.Clear();
+        }
+
+        // ── All platforms scanned from the loaded level scene ─────────────
+        public struct PlatformEntry
+        {
+            public Sprite? Sprite;
+            public Color   Color;
+            public float   HalfW;
+            public float   HalfH;
+            public int     MaterialType;
+        }
+
+        private static readonly System.Collections.Generic.List<PlatformEntry> _scannedPlatforms
+            = new System.Collections.Generic.List<PlatformEntry>();
+
+        public static System.Collections.Generic.IReadOnlyList<PlatformEntry> ScannedPlatforms
+            => _scannedPlatforms;
+
+        public static void ScanAllPlatformsFromScene()
+        {
+            _scannedPlatforms.Clear();
+            var platforms = Object.FindObjectsOfType<StickyRoundedRectangle>(true);
+            foreach (var p in platforms)
+            {
+                var sr = p.GetComponent<SpriteRenderer>();
+                if (sr == null) continue;
+
+                int mat = (int)p.platformType;
+                // Get platform size from SpriteRenderer bounds (world space)
+                float hw = sr.bounds.size.x * 0.5f;
+                float hh = sr.bounds.size.y * 0.5f;
+
+                var entry = new PlatformEntry
+                {
+                    Sprite       = sr.sprite,
+                    Color        = PlatformColors[Mathf.Clamp(mat, 0, 5)],
+                    HalfW        = hw > 0 ? hw : 1f,
+                    HalfH        = hh > 0 ? hh : 0.5f,
+                    MaterialType = mat,
+                };
+                _scannedPlatforms.Add(entry);
+            }
+            Plugin.Log.LogInfo($"[StyleHelper] Scanned {_scannedPlatforms.Count} platforms from scene.");
         }
 
         // ── Game UI button sprite (from CharacterSelectBox.joinColor Image) ──

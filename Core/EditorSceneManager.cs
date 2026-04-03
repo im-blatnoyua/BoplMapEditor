@@ -67,14 +67,16 @@ namespace BoplMapEditor.Core
             SceneManager.sceneLoaded -= OnLevelLoaded;
             Plugin.Log.LogInfo($"[EditorSceneMgr] Level '{scene.name}' loaded");
 
-            // Hide platforms — disable all SpriteRenderers on platform + children (grass etc.)
+            // 1. Scan sprites + platform data BEFORE hiding
+            StyleHelper.InvalidateMaterialCache();
+            StyleHelper.ScanPlatformAssets();
+            StyleHelper.ScanAllPlatformsFromScene();
+
+            // 2. Hide platforms — disable all SpriteRenderers including children (grass etc.)
             foreach (var root in scene.GetRootGameObjects())
                 foreach (var srr in root.GetComponentsInChildren<StickyRoundedRectangle>(true))
                     foreach (var sr in srr.GetComponentsInChildren<SpriteRenderer>(true))
                         sr.enabled = false;
-
-            StyleHelper.InvalidateMaterialCache();
-            StyleHelper.ScanPlatformAssets();
 
             var go = new GameObject("EditorBootstrap");
             go.AddComponent<EditorBootstrap>();
