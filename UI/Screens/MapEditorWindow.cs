@@ -30,17 +30,24 @@ namespace BoplMapEditor.UI
         private TMP_InputField      _propRadius = null!, _propRotation = null!;
         private readonly List<Button> _typeButtons   = new List<Button>();
         private readonly List<Button> _themeButtons  = new List<Button>();
-        private readonly List<Button> _toolButtons   = new List<Button>();
+        private readonly List<Button> _toolButtons   = new List<Button>();   // kept for API compat, stays empty
         private readonly List<Button> _presetButtons = new List<Button>();
 
         // Undo/Redo/Snap toolbar buttons
         private Button _undoBtn = null!;
         private Button _redoBtn = null!;
         private Button _snapBtn = null!;
+        private Button _playBtn = null!;
 
         // Viewport image — made transparent when a background scene is loaded
         private Image _viewportImg = null!;
         private Image _bgImg = null!;
+
+        // Play / preview mode
+        private bool _isPlayMode;
+        private GameObject _playOverlay = null!;   // the "STOP" button shown in play mode
+        private GameObject _leftPanelGo = null!;
+        private GameObject _sidebarGo   = null!;
 
         // Tab fields — kept for API compatibility, wired to dummy objects
         private GameObject       _platformsTab   = null!;
@@ -56,7 +63,7 @@ namespace BoplMapEditor.UI
 
         // Layout constants
         private const float TOP_BAR_H    = 60f;
-        private const float LEFT_PANEL_W = 100f;
+        private const float LEFT_PANEL_W = 110f;
         private const float RIGHT_PANEL_W = 210f;
 
         // ── Factory ───────────────────────────────────────────────────────
@@ -145,12 +152,12 @@ namespace BoplMapEditor.UI
             main.offsetMin = new Vector2(0f, 0f);
             main.offsetMax = new Vector2(0f, -TOP_BAR_H - 1f);
 
-            // ── Left panel (88px wide, dark navy) ──────────────────────────
-            var leftPanelGo = new GameObject("LeftPanel");
-            leftPanelGo.transform.SetParent(main, false);
-            var leftPanelImg = leftPanelGo.AddComponent<Image>();
+            // ── Left panel (palette, dark navy) ────────────────────────────
+            _leftPanelGo = new GameObject("LeftPanel");
+            _leftPanelGo.transform.SetParent(main, false);
+            var leftPanelImg = _leftPanelGo.AddComponent<Image>();
             leftPanelImg.color = new Color(0.07f, 0.10f, 0.20f, 1.0f);
-            var leftPanelRt = leftPanelGo.GetComponent<RectTransform>();
+            var leftPanelRt = _leftPanelGo.GetComponent<RectTransform>();
             leftPanelRt.anchorMin = new Vector2(0f, 0f);
             leftPanelRt.anchorMax = new Vector2(0f, 1f);
             leftPanelRt.offsetMin = new Vector2(0f, 0f);
@@ -171,7 +178,8 @@ namespace BoplMapEditor.UI
             }
 
             // ── Right sidebar (200px wide, dark bg) ────────────────────────
-            var sidebarGo = new GameObject("Sidebar");
+            _sidebarGo = new GameObject("Sidebar");
+            var sidebarGo = _sidebarGo;
             sidebarGo.transform.SetParent(main, false);
             var sidebarImg = sidebarGo.AddComponent<Image>();
             sidebarImg.color = new Color(0.06f, 0.09f, 0.16f, 0.97f);
@@ -240,6 +248,9 @@ namespace BoplMapEditor.UI
             _environmentTab = new GameObject("Tab_Environment_Dummy");
             _environmentTab.transform.SetParent(bg, false);
 
+            // ── Play mode overlay ─────────────────────────────────────────
+            BuildPlayOverlay(bg);
+
             // ── In-editor load browser (modal) ────────────────────────────
             BuildBrowserPanel(bg);
         }
@@ -249,52 +260,49 @@ namespace BoplMapEditor.UI
         private void BuildTopBar(RectTransform topBar)
         {
             var layout = topBar.gameObject.AddComponent<HorizontalLayoutGroup>();
-            layout.padding = new RectOffset(12, 12, 8, 8);
-            layout.spacing = 6;
+            layout.padding = new RectOffset(10, 10, 7, 7);
+            layout.spacing = 5;
             layout.childAlignment       = TextAnchor.MiddleLeft;
             layout.childForceExpandHeight = true;
             layout.childForceExpandWidth  = false;
 
-            // Scene background buttons (top bar, before undo/redo)
-            {
-                var sceneGrassBtn = AddTopBarButton(topBar, "GRASS", new Color(0.20f, 0.65f, 0.15f, 1f), minWidth: 64, minHeight: 44);
-                sceneGrassBtn.onClick.AddListener(() => Util.BackgroundSceneLoader.Load(0));
-                var sceneSnowBtn = AddTopBarButton(topBar, "SNOW", new Color(0.45f, 0.75f, 0.95f, 1f), minWidth: 60, minHeight: 44);
-                sceneSnowBtn.onClick.AddListener(() => Util.BackgroundSceneLoader.Load(1));
-                var sceneSpaceBtn = AddTopBarButton(topBar, "SPACE", new Color(0.25f, 0.15f, 0.65f, 1f), minWidth: 64, minHeight: 44);
-                sceneSpaceBtn.onClick.AddListener(() => Util.BackgroundSceneLoader.Load(2));
-            }
-            AddTopBarSep(topBar);
-
-            // Undo button
-            _undoBtn = AddTopBarButton(topBar, "UNDO", StyleHelper.DarkBlue, minWidth: 60, minHeight: 44);
+            // Undo / Redo
+            _undoBtn = AddTopBarButton(topBar, "<", StyleHelper.DarkBlue, minWidth: 38, minHeight: 42);
             _undoBtn.onClick.AddListener(OnUndo);
-
-            // Redo button
-            _redoBtn = AddTopBarButton(topBar, "REDO", StyleHelper.DarkBlue, minWidth: 60, minHeight: 44);
+            _redoBtn = AddTopBarButton(topBar, ">", StyleHelper.DarkBlue, minWidth: 38, minHeight: 42);
             _redoBtn.onClick.AddListener(OnRedo);
 
             AddTopBarSep(topBar);
 
-            // Title label
-            AddTopBarLabel(topBar, "MAP EDITOR", 18f, bold: true, minWidth: 140);
-
-            // Map name input field
+            // Map name
             _mapNameField = AddTopBarInputField(topBar);
             _mapNameField.onEndEdit.AddListener(n => _ctrl.CurrentMap.Name = n);
 
-            AddTopBarSep(topBar);
-
-            // Save button (blue oval)
-            var saveBtn = AddTopBarButton(topBar, "SAVE", StyleHelper.Blue, minWidth: 80, minHeight: 44);
+            // Save
+            var saveBtn = AddTopBarButton(topBar, "SAVE", StyleHelper.Blue, minWidth: 72, minHeight: 42);
             saveBtn.onClick.AddListener(OnSave);
 
-            // Snap button (green, toggleable)
-            _snapBtn = AddTopBarButton(topBar, "SNAP", new Color(0.25f, 0.60f, 0.30f, 1f), minWidth: 72, minHeight: 44);
-            _snapBtn.onClick.AddListener(() => {
-                _ctrl.SnapToGrid = !_ctrl.SnapToGrid;
-                UpdateSnapHighlight(_snapBtn);
-            });
+            AddTopBarSep(topBar);
+
+            // ── Scene / theme preview buttons ─────────────────────────────
+            var grassBtn = AddTopBarThemeButton(topBar, "GRASS",
+                new Color(0.20f, 0.60f, 0.15f, 1f), new Color(0.12f, 0.42f, 0.08f, 1f));
+            grassBtn.onClick.AddListener(() => { Util.BackgroundSceneLoader.Load(0); SetTheme(0); });
+
+            var snowBtn = AddTopBarThemeButton(topBar, "SNOW",
+                new Color(0.72f, 0.85f, 1.00f, 1f), new Color(0.40f, 0.60f, 0.85f, 1f));
+            snowBtn.onClick.AddListener(() => { Util.BackgroundSceneLoader.Load(1); SetTheme(1); });
+
+            var spaceBtn = AddTopBarThemeButton(topBar, "SPACE",
+                new Color(0.22f, 0.12f, 0.55f, 1f), new Color(0.08f, 0.05f, 0.25f, 1f));
+            spaceBtn.onClick.AddListener(() => { Util.BackgroundSceneLoader.Load(2); SetTheme(2); });
+
+            AddTopBarSep(topBar);
+
+            // SNAP
+            _snapBtn = AddTopBarButton(topBar, "SNAP", new Color(0.22f, 0.55f, 0.28f, 1f), minWidth: 60, minHeight: 42);
+            _snapBtn.onClick.AddListener(() => { _ctrl.SnapToGrid = !_ctrl.SnapToGrid; UpdateSnapHighlight(_snapBtn); });
+            UpdateSnapHighlight(_snapBtn);
 
             // Flexible spacer
             {
@@ -303,18 +311,72 @@ namespace BoplMapEditor.UI
                 spacer.AddComponent<LayoutElement>().flexibleWidth = 1f;
             }
 
-            // Close button (red oval)
-            var closeBtn = AddTopBarButton(topBar, "EXIT", new Color(0.85f, 0.14f, 0.14f, 1f), minWidth: 72, minHeight: 44);
+            // PLAY button — prominent green, triggers preview mode
+            _playBtn = AddTopBarButton(topBar, "PLAY", StyleHelper.SuccessColor, minWidth: 88, minHeight: 46);
+            _playBtn.onClick.AddListener(EnterPlayMode);
+
+            AddTopBarSep(topBar);
+
+            // Close
+            var closeBtn = AddTopBarButton(topBar, "EXIT", StyleHelper.DangerColor, minWidth: 66, minHeight: 42);
             closeBtn.onClick.AddListener(Close);
 
-            // Dummy tab buttons (API compatibility — never shown)
+            // Dummy tab buttons (API compat)
             var dummyGo = new GameObject("TabBtns_Dummy");
             dummyGo.transform.SetParent(topBar, false);
             dummyGo.AddComponent<LayoutElement>().minWidth = 0;
             _tabPlatforms   = dummyGo.AddComponent<Button>();
             _tabEnvironment = dummyGo.AddComponent<Button>();
+        }
 
-            UpdateSnapHighlight(_snapBtn);
+        // Two-tone themed button for GRASS/SNOW/SPACE in the top bar.
+        private Button AddTopBarThemeButton(RectTransform parent, string text,
+            Color topColor, Color bottomColor)
+        {
+            var go = new GameObject("ThemeBtn_" + text);
+            go.transform.SetParent(parent, false);
+
+            var img   = go.AddComponent<Image>();
+            img.color  = topColor;
+            img.sprite = StyleHelper.GetButtonSprite();
+            img.type   = Image.Type.Sliced;
+
+            var btn = go.AddComponent<Button>();
+            StyleHelper.StyleButton(btn, topColor);
+            StyleHelper.AddPressColorSwap(btn);
+
+            var le = go.AddComponent<LayoutElement>();
+            le.minWidth    = 62;
+            le.minHeight   = 42;
+            le.flexibleWidth = 0;
+
+            // Color accent strip at bottom
+            var accentGo = new GameObject("Accent");
+            accentGo.transform.SetParent(go.transform, false);
+            var accentImg = accentGo.AddComponent<Image>();
+            accentImg.color = bottomColor;
+            accentImg.raycastTarget = false;
+            var accentRt = accentGo.GetComponent<RectTransform>();
+            accentRt.anchorMin = new Vector2(0f, 0f);
+            accentRt.anchorMax = new Vector2(1f, 0.35f);
+            accentRt.offsetMin = Vector2.zero;
+            accentRt.offsetMax = Vector2.zero;
+
+            var lblGo = new GameObject("L");
+            lblGo.transform.SetParent(go.transform, false);
+            var tmp = lblGo.AddComponent<TextMeshProUGUI>();
+            StyleHelper.StyleText(tmp, 13f, bold: true);
+            tmp.text = text;
+            tmp.fontStyle = FontStyles.Bold | FontStyles.UpperCase;
+            tmp.alignment = TextAlignmentOptions.Center;
+            tmp.raycastTarget = false;
+            var lrt = lblGo.GetComponent<RectTransform>();
+            lrt.anchorMin = new Vector2(0f, 0.35f);
+            lrt.anchorMax = Vector2.one;
+            lrt.offsetMin = new Vector2(2, 1);
+            lrt.offsetMax = new Vector2(-2, -1);
+
+            return btn;
         }
 
         private Button AddTopBarButton(RectTransform parent, string text, Color color,
@@ -426,65 +488,102 @@ namespace BoplMapEditor.UI
             le.flexibleHeight = 0;
         }
 
-        // ── Left Panel (absolute positioning) ─────────────────────────────
+        // ── Left Panel — visual object palette ────────────────────────────
+
+        // Fixed visual sizes for the mini shape preview inside each palette button.
+        // Values are (previewWidth, previewHeight) in canvas pixels.
+        private static readonly Vector2[] PresetPreviewSize = {
+            new Vector2(64f,  7f),   // WIDE
+            new Vector2(44f,  7f),   // MEDIUM
+            new Vector2(26f,  7f),   // SMALL
+            new Vector2(26f, 26f),   // ROUND
+            new Vector2(52f,  7f),   // NORMAL
+            new Vector2(68f,  7f),   // LONG
+        };
 
         private void BuildLeftPanel(RectTransform panel)
         {
-            float cx = 8f;    // x position of buttons from left edge
-            float bw = 72f;   // button width
+            const float cx  = 7f;
+            const float bw  = LEFT_PANEL_W - cx * 2f;   // ~96px
 
-            // ── TOOLS section ─────────────────────────────────────────────
-            MakeLeftLabel(panel, "TOOLS", cx, bw, -24f, 16f);
+            // ── PALETTE section ───────────────────────────────────────────
+            MakeLeftLabel(panel, "PALETTE", cx, bw, -14f, 13f);
 
-            string[] toolNames  = { "SELECT", "PLACE", "DELETE" };
-            Color[]  toolColors = {
-                StyleHelper.Blue,
-                StyleHelper.Orange,
-                new Color(0.85f, 0.20f, 0.20f, 1f)
-            };
+            float paletteStart = -30f;
+            float paletteStep  = 46f;
+            Color baseColor = StyleHelper.PlatformColors[Mathf.Clamp(_ctrl.PlacePlatformType, 0, StyleHelper.PlatformColors.Length - 1)];
 
-            float[] toolY = { -56f, -106f, -156f };
-            for (int i = 0; i < toolNames.Length; i++)
-            {
-                int idx = i;
-                var btn = MakeLeftButton(panel, toolNames[i], toolColors[i],
-                    new Vector2(cx, toolY[i]), new Vector2(bw, 44f));
-                btn.onClick.AddListener(() => SetTool(idx));
-                _toolButtons.Add(btn);
-            }
-
-            // Separator after tools
-            MakeLeftDivider(panel, -184f, bw, cx);
-
-            // ── ISLANDS section ───────────────────────────────────────────
-            MakeLeftLabel(panel, "ISLANDS", cx, bw, -200f, 14f);
-
-            float islandStartY = -222f;
-            float islandStep   = 42f;
             for (int i = 0; i < MapEditorController.IslandPresets.Length; i++)
             {
-                int idx = i;
-                float by = islandStartY - i * islandStep;
-                Color baseColor = StyleHelper.PlatformColors[Mathf.Clamp(_ctrl.PlacePlatformType, 0, StyleHelper.PlatformColors.Length - 1)];
-                var btn = MakeLeftButton(panel, MapEditorController.IslandPresets[i].name,
-                    baseColor,
-                    new Vector2(cx, by), new Vector2(bw, 38f));
+                int   idx    = i;
+                float by     = paletteStart - i * paletteStep;
+                var   preset = MapEditorController.IslandPresets[i];
+
+                var go = new GameObject("PaletteItem_" + preset.name);
+                go.transform.SetParent(panel, false);
+                var bgImg   = go.AddComponent<Image>();
+                bgImg.color  = new Color(0.10f, 0.13f, 0.22f, 1f);
+                bgImg.sprite = StyleHelper.GetButtonSprite();
+                bgImg.type   = Image.Type.Sliced;
+                var btn = go.AddComponent<Button>();
+                StyleHelper.StyleButton(btn, new Color(0.10f, 0.13f, 0.22f, 1f));
+                StyleHelper.AddPressColorSwap(btn);
+                var rt = go.GetComponent<RectTransform>();
+                rt.anchorMin = new Vector2(0f, 1f);
+                rt.anchorMax = new Vector2(0f, 1f);
+                rt.pivot     = new Vector2(0f, 1f);
+                rt.sizeDelta = new Vector2(bw, 42f);
+                rt.anchoredPosition = new Vector2(cx, by);
+
+                // Mini shape preview (centered in button)
+                var shapeGo  = new GameObject("Shape");
+                shapeGo.transform.SetParent(go.transform, false);
+                var shapeImg = shapeGo.AddComponent<Image>();
+                shapeImg.color        = baseColor;
+                shapeImg.sprite       = StyleHelper.MakeRoundedSprite();
+                shapeImg.type         = Image.Type.Sliced;
+                shapeImg.raycastTarget = false;
+                var shapeRt = shapeGo.GetComponent<RectTransform>();
+                shapeRt.anchoredPosition = new Vector2(0f, 6f);
+                shapeRt.sizeDelta        = PresetPreviewSize[i];
+
+                // Name label at the bottom of the button
+                var lblGo = new GameObject("L");
+                lblGo.transform.SetParent(go.transform, false);
+                var tmp = lblGo.AddComponent<TextMeshProUGUI>();
+                StyleHelper.StyleText(tmp, 10f, bold: true);
+                tmp.text      = preset.name;
+                tmp.alignment = TextAlignmentOptions.Center;
+                tmp.fontStyle = FontStyles.Bold | FontStyles.UpperCase;
+                tmp.raycastTarget = false;
+                var lrt = lblGo.GetComponent<RectTransform>();
+                lrt.anchorMin = new Vector2(0f, 0f);
+                lrt.anchorMax = new Vector2(1f, 0.38f);
+                lrt.offsetMin = new Vector2(2, 2);
+                lrt.offsetMax = new Vector2(-2, 0);
+
                 btn.onClick.AddListener(() => {
                     _ctrl.SelectedPreset = idx;
-                    _ctrl.ActiveTool = EditorTool.Place;
-                    UpdateToolHighlights();
+                    _ctrl.ActiveTool = EditorTool.DirectManipulation;
                     UpdatePresetHighlights();
                 });
                 _presetButtons.Add(btn);
             }
 
-            // Material selector row (small colored squares, 14x14 each)
-            float matRowY = islandStartY - MapEditorController.IslandPresets.Length * islandStep - 8f;
-            MakeLeftLabel(panel, "MATERIAL", cx, bw, matRowY, 12f);
-            float matSqY   = matRowY - 16f;
-            float matSqSize = 14f;
-            float matSqGap  = 2f;
-            float matRowX   = cx;
+            // ── Divider ───────────────────────────────────────────────────
+            float afterPalette = paletteStart - MapEditorController.IslandPresets.Length * paletteStep - 4f;
+            MakeLeftDivider(panel, afterPalette, bw, cx);
+
+            // ── MATERIAL section ──────────────────────────────────────────
+            float matLabelY = afterPalette - 16f;
+            MakeLeftLabel(panel, "MATERIAL", cx, bw, matLabelY, 12f);
+
+            float matSqY    = matLabelY - 16f;
+            const float sqSz  = 16f;
+            const float sqGap = 2f;
+            float totalMatW   = StyleHelper.PlatformColors.Length * (sqSz + sqGap) - sqGap;
+            float matOffX     = cx + (bw - totalMatW) * 0.5f;
+
             for (int i = 0; i < StyleHelper.PlatformColors.Length; i++)
             {
                 int idx = i;
@@ -494,45 +593,89 @@ namespace BoplMapEditor.UI
                 img.color  = StyleHelper.PlatformColors[i];
                 img.sprite = StyleHelper.GetButtonSprite();
                 img.type   = Image.Type.Sliced;
-                var btn = sqGo.AddComponent<Button>();
-                StyleHelper.StyleButton(btn, StyleHelper.PlatformColors[i]);
-                StyleHelper.AddPressColorSwap(btn);
-                var rt = sqGo.GetComponent<RectTransform>();
-                rt.anchorMin = new Vector2(0f, 1f);
-                rt.anchorMax = new Vector2(0f, 1f);
-                rt.pivot     = new Vector2(0f, 1f);
-                rt.sizeDelta = new Vector2(matSqSize, matSqSize);
-                rt.anchoredPosition = new Vector2(matRowX + i * (matSqSize + matSqGap), matSqY);
-                btn.onClick.AddListener(() => {
+                var sqBtn = sqGo.AddComponent<Button>();
+                StyleHelper.StyleButton(sqBtn, StyleHelper.PlatformColors[i]);
+                StyleHelper.AddPressColorSwap(sqBtn);
+                var sqRt = sqGo.GetComponent<RectTransform>();
+                sqRt.anchorMin = new Vector2(0f, 1f);
+                sqRt.anchorMax = new Vector2(0f, 1f);
+                sqRt.pivot     = new Vector2(0f, 1f);
+                sqRt.sizeDelta = new Vector2(sqSz, sqSz);
+                sqRt.anchoredPosition = new Vector2(matOffX + i * (sqSz + sqGap), matSqY);
+                sqBtn.onClick.AddListener(() => {
                     SetPlacePlatformType(idx);
                     UpdatePresetHighlights();
                 });
-                _typeButtons.Add(btn);
+                _typeButtons.Add(sqBtn);
             }
 
-            // Separator after material selector
-            float afterMaterialY = matSqY - matSqSize - 8f;
-            MakeLeftDivider(panel, afterMaterialY, bw, cx);
+            // ── Divider ───────────────────────────────────────────────────
+            float afterMat = matSqY - sqSz - 6f;
+            MakeLeftDivider(panel, afterMat, bw, cx);
 
-            // ── THEME section ─────────────────────────────────────────────
-            float themeLabelY = afterMaterialY - 18f;
-            MakeLeftLabel(panel, "THEME", cx, bw, themeLabelY, 14f);
+            // ── THEME section — visual thumbnail cards ────────────────────
+            float themeLabelY = afterMat - 16f;
+            MakeLeftLabel(panel, "THEME", cx, bw, themeLabelY, 12f);
 
-            float themeStartY = themeLabelY - 34f;
-            float themeStep   = 44f;
-            string[] themeShort = { "GRASS", "SNOW", "SPACE" };
-            for (int i = 0; i < StyleHelper.ThemeNames.Length; i++)
+            Color[]  themeTop    = { new Color(0.18f,0.52f,0.10f,1f), new Color(0.65f,0.82f,1.00f,1f), new Color(0.16f,0.08f,0.42f,1f) };
+            Color[]  themeBottom = { new Color(0.32f,0.75f,0.22f,1f), new Color(0.90f,0.95f,1.00f,1f), new Color(0.05f,0.03f,0.18f,1f) };
+            string[] themeShort  = { "GRASS", "SNOW", "SPACE" };
+
+            float themeStart = themeLabelY - 14f;
+            const float themeH = 36f;
+            const float themeGap = 4f;
+
+            for (int i = 0; i < 3; i++)
             {
                 int idx = i;
-                float ty = themeStartY - i * themeStep;
-                var btn = MakeLeftButton(panel, themeShort[i],
-                    StyleHelper.ThemeColors[i],
-                    new Vector2(cx, ty), new Vector2(bw, 36f));
-                btn.onClick.AddListener(() => SetTheme(idx));
-                _themeButtons.Add(btn);
+                float ty = themeStart - i * (themeH + themeGap);
+
+                var go = new GameObject("ThemeCard_" + themeShort[i]);
+                go.transform.SetParent(panel, false);
+                var bgImg = go.AddComponent<Image>();
+                bgImg.color  = themeTop[i];
+                bgImg.sprite = StyleHelper.GetButtonSprite();
+                bgImg.type   = Image.Type.Sliced;
+                var tBtn = go.AddComponent<Button>();
+                StyleHelper.StyleButton(tBtn, themeTop[i]);
+                StyleHelper.AddPressColorSwap(tBtn);
+                var tRt = go.GetComponent<RectTransform>();
+                tRt.anchorMin = new Vector2(0f, 1f);
+                tRt.anchorMax = new Vector2(0f, 1f);
+                tRt.pivot     = new Vector2(0f, 1f);
+                tRt.sizeDelta = new Vector2(bw, themeH);
+                tRt.anchoredPosition = new Vector2(cx, ty);
+
+                // Bottom strip (ground color)
+                var stripGo = new GameObject("Strip");
+                stripGo.transform.SetParent(go.transform, false);
+                var stripImg = stripGo.AddComponent<Image>();
+                stripImg.color = themeBottom[i];
+                stripImg.raycastTarget = false;
+                var sRt = stripGo.GetComponent<RectTransform>();
+                sRt.anchorMin = Vector2.zero;
+                sRt.anchorMax = new Vector2(1f, 0.30f);
+                sRt.offsetMin = Vector2.zero;
+                sRt.offsetMax = Vector2.zero;
+
+                var lblGo = new GameObject("L");
+                lblGo.transform.SetParent(go.transform, false);
+                var tmp = lblGo.AddComponent<TextMeshProUGUI>();
+                StyleHelper.StyleText(tmp, 12f, bold: true);
+                tmp.text      = themeShort[i];
+                tmp.alignment = TextAlignmentOptions.Center;
+                tmp.fontStyle = FontStyles.Bold | FontStyles.UpperCase;
+                tmp.raycastTarget = false;
+                var lrt = lblGo.GetComponent<RectTransform>();
+                lrt.anchorMin = new Vector2(0f, 0.30f);
+                lrt.anchorMax = Vector2.one;
+                lrt.offsetMin = Vector2.zero;
+                lrt.offsetMax = Vector2.zero;
+
+                tBtn.onClick.AddListener(() => SetTheme(idx));
+                _themeButtons.Add(tBtn);
             }
 
-            UpdateToolHighlights();
             UpdateTypeHighlights();
             UpdateThemeHighlights();
             UpdatePresetHighlights();
@@ -904,9 +1047,10 @@ namespace BoplMapEditor.UI
         private void SetPlacePlatformType(int idx)
         {
             _ctrl.PlacePlatformType = idx;
-            _ctrl.ActiveTool = EditorTool.Place;
-            UpdateToolHighlights();
+            _ctrl.ActiveTool = EditorTool.DirectManipulation;
             UpdateTypeHighlights();
+            // Refresh palette button shapes to reflect new material color
+            UpdatePresetHighlights();
         }
 
         private void SetTheme(int idx)
@@ -1051,18 +1195,7 @@ namespace BoplMapEditor.UI
 
         private void UpdateToolHighlights()
         {
-            Color[] tc = {
-                StyleHelper.Blue,
-                StyleHelper.Orange,
-                new Color(0.72f, 0.20f, 0.20f, 1f)
-            };
-            for (int i = 0; i < _toolButtons.Count; i++)
-            {
-                bool active = i == (int)_ctrl.ActiveTool;
-                var  img    = _toolButtons[i].GetComponent<Image>();
-                if (img != null)
-                    img.color = active ? tc[i] : tc[i] * 0.45f;
-            }
+            // Tool buttons removed from palette — no-op (kept for API compat).
         }
 
         private void UpdateTypeHighlights()
@@ -1093,15 +1226,28 @@ namespace BoplMapEditor.UI
 
         private void UpdatePresetHighlights()
         {
+            int typeIdx = Mathf.Clamp(_ctrl.PlacePlatformType, 0, StyleHelper.PlatformColors.Length - 1);
+            Color matColor = StyleHelper.PlatformColors[typeIdx];
+
             for (int i = 0; i < _presetButtons.Count; i++)
             {
                 bool active = i == _ctrl.SelectedPreset;
-                var  img    = _presetButtons[i].GetComponent<Image>();
-                if (img != null)
+                var  btn    = _presetButtons[i];
+
+                // Button background: highlight selected
+                var bgImg = btn.GetComponent<Image>();
+                if (bgImg != null)
+                    bgImg.color = active
+                        ? new Color(0.16f, 0.22f, 0.38f, 1f)
+                        : new Color(0.10f, 0.13f, 0.22f, 1f);
+
+                // Shape preview inside: always reflects material color
+                var shapeT = btn.transform.Find("Shape");
+                if (shapeT != null)
                 {
-                    int typeIdx = Mathf.Clamp(_ctrl.PlacePlatformType, 0, StyleHelper.PlatformColors.Length - 1);
-                    Color baseColor = StyleHelper.PlatformColors[typeIdx];
-                    img.color = active ? baseColor : baseColor * 0.45f;
+                    var shapeImg = shapeT.GetComponent<Image>();
+                    if (shapeImg != null)
+                        shapeImg.color = active ? matColor : matColor * 0.55f;
                 }
             }
         }
@@ -1113,6 +1259,80 @@ namespace BoplMapEditor.UI
             var snapOnColor  = new Color(0.25f, 0.60f, 0.30f, 1f);
             var snapOffColor = snapOnColor * 0.45f;
             img.color = _ctrl.SnapToGrid ? snapOnColor : snapOffColor;
+        }
+
+        // ── Play / Preview mode ───────────────────────────────────────────
+
+        private void BuildPlayOverlay(RectTransform parent)
+        {
+            _playOverlay = new GameObject("PlayOverlay");
+            _playOverlay.transform.SetParent(parent, false);
+
+            // Transparent full-screen overlay (catches clicks from reaching editor)
+            var ort = _playOverlay.AddComponent<RectTransform>();
+            ort.anchorMin = Vector2.zero;
+            ort.anchorMax = Vector2.one;
+            ort.offsetMin = Vector2.zero;
+            ort.offsetMax = Vector2.zero;
+            var overlayImg = _playOverlay.AddComponent<Image>();
+            overlayImg.color = Color.clear;
+            overlayImg.raycastTarget = false;
+
+            // STOP button — floats at bottom-center
+            var stopGo = new GameObject("StopBtn");
+            stopGo.transform.SetParent(_playOverlay.transform, false);
+            var stopImg   = stopGo.AddComponent<Image>();
+            stopImg.color  = StyleHelper.DangerColor;
+            stopImg.sprite = StyleHelper.GetButtonSprite();
+            stopImg.type   = Image.Type.Sliced;
+            var stopBtn = stopGo.AddComponent<Button>();
+            StyleHelper.StyleButton(stopBtn, StyleHelper.DangerColor);
+            StyleHelper.AddPressColorSwap(stopBtn);
+            stopBtn.onClick.AddListener(ExitPlayMode);
+            var stopRt = stopGo.GetComponent<RectTransform>();
+            stopRt.anchorMin = new Vector2(0.5f, 0f);
+            stopRt.anchorMax = new Vector2(0.5f, 0f);
+            stopRt.pivot     = new Vector2(0.5f, 0f);
+            stopRt.sizeDelta = new Vector2(160f, 48f);
+            stopRt.anchoredPosition = new Vector2(0f, 20f);
+
+            var stopLblGo = new GameObject("L");
+            stopLblGo.transform.SetParent(stopGo.transform, false);
+            var stopTmp = stopLblGo.AddComponent<TextMeshProUGUI>();
+            StyleHelper.StyleText(stopTmp, 18f, bold: true);
+            stopTmp.text = "STOP";
+            stopTmp.fontStyle = FontStyles.Bold;
+            stopTmp.alignment = TextAlignmentOptions.Center;
+            stopTmp.raycastTarget = false;
+            var stopLblRt = stopLblGo.GetComponent<RectTransform>();
+            stopLblRt.anchorMin = Vector2.zero;
+            stopLblRt.anchorMax = Vector2.one;
+            stopLblRt.offsetMin = Vector2.zero;
+            stopLblRt.offsetMax = Vector2.zero;
+
+            _playOverlay.SetActive(false);
+        }
+
+        private void EnterPlayMode()
+        {
+            if (_isPlayMode) return;
+            _isPlayMode = true;
+            _leftPanelGo.SetActive(false);
+            _sidebarGo.SetActive(false);
+            _playOverlay.SetActive(true);
+            if (_playBtn != null)
+                _playBtn.GetComponent<Image>().color = StyleHelper.DangerColor;
+        }
+
+        private void ExitPlayMode()
+        {
+            if (!_isPlayMode) return;
+            _isPlayMode = false;
+            _leftPanelGo.SetActive(true);
+            _sidebarGo.SetActive(true);
+            _playOverlay.SetActive(false);
+            if (_playBtn != null)
+                _playBtn.GetComponent<Image>().color = StyleHelper.SuccessColor;
         }
 
         private void OnUndo()

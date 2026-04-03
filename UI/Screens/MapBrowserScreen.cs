@@ -7,35 +7,53 @@ using UnityEngine.UI;
 
 namespace BoplMapEditor.UI
 {
-    // Full-screen map browser: shown when clicking "Map Editor" in lobby.
-    // Clean list layout: one row per map with name, platform count, Edit and Delete buttons.
+    // Full-screen map browser injected into the game's own canvas.
+    // No separate overlay — lives as a child of the CharacterSelect canvas.
     public class MapBrowserScreen : MonoBehaviour
     {
-        private Canvas          _canvas       = null!;
-        private SlideAnimator   _slide        = null!;
-        private RectTransform   _listContent  = null!;
-        private MapEditorWindow _editorWindow = null!;
+        private RectTransform         _root        = null!;
+        private RectTransform         _listContent = null!;
+        private NativeMapEditorScreen _editorScreen = null!;
 
-        // New-map dialog refs
-        private GameObject      _newMapDialog    = null!;
-        private TMP_InputField  _newMapNameField = null!;
-        private TextMeshProUGUI _newMapError     = null!;
+        // Game colors passed in from CharacterSelectHandler
+        private Color _blue;
+        private Color _darkBlue;
+        private Color _orange;
 
-        private const float HEADER_H = 72f;
+        // Sky blue — main background of this screen
+        static readonly Color SkyBlue     = new Color(0.44f, 0.72f, 0.94f, 1f);
+        static readonly Color SkyBlueDark = new Color(0.28f, 0.55f, 0.80f, 1f);
+        static readonly Color SkyPanel    = new Color(0.34f, 0.62f, 0.86f, 0.96f);
+        static readonly Color White       = Color.white;
+
+        const float HEADER_H = 80f;
 
         // ── Factory ───────────────────────────────────────────────────────
 
-        public static MapBrowserScreen Create(MapEditorWindow editorWindow)
+        public static MapBrowserScreen Create(
+            Transform canvasRoot,
+            NativeMapEditorScreen editorScreen,
+            Color blue, Color darkBlue, Color orange)
         {
-            var canvas = UIBuilder.CreateCanvas("MapBrowserCanvas", sortOrder: 150);
-            var screen = canvas.gameObject.AddComponent<MapBrowserScreen>();
-            screen._canvas       = canvas;
-            screen._editorWindow = editorWindow;
+            var go = new GameObject("MapBrowserScreen");
+            go.transform.SetParent(canvasRoot, false);
+
+            // Stretch to fill the entire canvas
+            var rt = go.AddComponent<RectTransform>();
+            rt.anchorMin = Vector2.zero;
+            rt.anchorMax = Vector2.one;
+            rt.offsetMin = Vector2.zero;
+            rt.offsetMax = Vector2.zero;
+
+            var screen = go.AddComponent<MapBrowserScreen>();
+            screen._root        = rt;
+            screen._editorScreen = editorScreen;
+            screen._blue        = blue;
+            screen._darkBlue    = darkBlue;
+            screen._orange      = orange;
             screen.BuildUI();
-            screen._slide = canvas.gameObject.AddComponent<SlideAnimator>();
-            screen._slide.Target    = canvas.GetComponent<RectTransform>();
-            screen._slide.OffscreenY = 900f;
-            canvas.gameObject.SetActive(false);
+
+            go.SetActive(false);
             return screen;
         }
 
@@ -45,52 +63,88 @@ namespace BoplMapEditor.UI
         {
             gameObject.SetActive(true);
             Refresh();
-            _slide.AnimateIn();
         }
 
         public void Close()
         {
-            _slide.AnimateOut(() => gameObject.SetActive(false));
+            gameObject.SetActive(false);
         }
 
         // ── Build UI ──────────────────────────────────────────────────────
 
-        private void BuildUI()
+        void BuildUI()
         {
-            var root = _canvas.GetComponent<RectTransform>();
+            // Sky blue full-screen backdrop
+            var bg = _root.gameObject.AddComponent<Image>();
+            bg.color = SkyBlue;
 
-            // Dark navy backdrop — matches Bopl Battle lobby background feel
-            var backdrop = root.gameObject.AddComponent<Image>();
-            backdrop.color = new Color(0.02f, 0.04f, 0.10f, 0.92f);
+            // Subtle gradient overlay — darker at top, fades out
+            var gradGo = new GameObject("Gradient");
+            gradGo.transform.SetParent(_root, false);
+            var gradImg = gradGo.AddComponent<Image>();
+            gradImg.color = new Color(0f, 0.12f, 0.28f, 0.22f);
+            var grt = gradGo.GetComponent<RectTransform>();
+            grt.anchorMin = new Vector2(0f, 0.6f);
+            grt.anchorMax = Vector2.one;
+            grt.offsetMin = grt.offsetMax = Vector2.zero;
 
-            // ── Header bar ────────────────────────────────────────────────
-            var header = UIBuilder.FlatPanel(root, "Header",
-                new Color(0.05f, 0.08f, 0.16f, 0.97f),
-                new Vector2(0f, 1f), Vector2.one,
-                new Vector2(0f, -HEADER_H), Vector2.zero);
-            BuildHeader(header);
+            // ── Header ────────────────────────────────────────────────────
+            var headerGo = new GameObject("Header");
+            headerGo.transform.SetParent(_root, false);
+            var headerImg = headerGo.AddComponent<Image>();
+            headerImg.color = SkyBlueDark;
+            var hrt = headerGo.GetComponent<RectTransform>();
+            hrt.anchorMin = new Vector2(0f, 1f);
+            hrt.anchorMax = Vector2.one;
+            hrt.offsetMin = new Vector2(0f, -HEADER_H);
+            hrt.offsetMax = Vector2.zero;
 
-            // Hairline border under header
-            var borderGo = new GameObject("HeaderBorder");
-            borderGo.transform.SetParent(root, false);
-            borderGo.AddComponent<Image>().color = StyleHelper.DarkBorder;
-            var brt = borderGo.GetComponent<RectTransform>();
-            brt.anchorMin = new Vector2(0f, 1f);
-            brt.anchorMax = Vector2.one;
-            brt.offsetMin = new Vector2(0f, -HEADER_H - 1f);
-            brt.offsetMax = new Vector2(0f, -HEADER_H);
+            var hlg = headerGo.AddComponent<HorizontalLayoutGroup>();
+            hlg.padding               = new RectOffset(32, 20, 0, 0);
+            hlg.spacing               = 16;
+            hlg.childAlignment         = TextAnchor.MiddleLeft;
+            hlg.childForceExpandHeight = true;
+            hlg.childForceExpandWidth  = false;
 
-            // ── Scrollable map list ───────────────────────────────────────
+            // Title
+            var titleGo = new GameObject("Title");
+            titleGo.transform.SetParent(headerGo.transform, false);
+            var titleTmp = titleGo.AddComponent<TextMeshProUGUI>();
+            ApplyGameFont(titleTmp, 32f, bold: true);
+            titleTmp.text      = "MY MAPS";
+            titleTmp.color     = White;
+            titleTmp.fontStyle = FontStyles.Bold | FontStyles.UpperCase;
+            titleTmp.alignment = TextAlignmentOptions.Left;
+            titleGo.AddComponent<LayoutElement>().flexibleWidth = 1;
+
+            // + New Map button
+            var newBtn = MakeHeaderButton(headerGo.transform, "+ New Map", _orange, 140f, 50f);
+            newBtn.onClick.AddListener(OnNewMap);
+
+            // Close button
+            var closeBtn = MakeHeaderButton(headerGo.transform, "X Close",
+                new Color(0.75f, 0.18f, 0.18f, 1f), 100f, 50f);
+            closeBtn.onClick.AddListener(Close);
+
+            // Thin separator line under header
+            var sepGo = new GameObject("Sep");
+            sepGo.transform.SetParent(_root, false);
+            sepGo.AddComponent<Image>().color = new Color(0.18f, 0.40f, 0.65f, 0.70f);
+            var srt = sepGo.GetComponent<RectTransform>();
+            srt.anchorMin = new Vector2(0f, 1f);
+            srt.anchorMax = Vector2.one;
+            srt.offsetMin = new Vector2(0f, -HEADER_H - 2f);
+            srt.offsetMax = new Vector2(0f, -HEADER_H);
+
+            // ── Scrollable content area ───────────────────────────────────
             var scrollGo = new GameObject("Scroll");
-            scrollGo.transform.SetParent(root, false);
+            scrollGo.transform.SetParent(_root, false);
             var scrollRt = scrollGo.AddComponent<RectTransform>();
             scrollRt.anchorMin = Vector2.zero;
             scrollRt.anchorMax = Vector2.one;
             scrollRt.offsetMin = Vector2.zero;
-            scrollRt.offsetMax = new Vector2(0f, -HEADER_H - 1f);
-
-            var scrollBg = scrollGo.AddComponent<Image>();
-            scrollBg.color = Color.clear;
+            scrollRt.offsetMax = new Vector2(0f, -HEADER_H - 2f);
+            scrollGo.AddComponent<Image>().color = Color.clear;
 
             var scroll = scrollGo.AddComponent<ScrollRect>();
             scroll.horizontal = false;
@@ -100,8 +154,7 @@ namespace BoplMapEditor.UI
             var vpRt = vpGo.AddComponent<RectTransform>();
             vpRt.anchorMin = Vector2.zero;
             vpRt.anchorMax = Vector2.one;
-            vpRt.offsetMin = Vector2.zero;
-            vpRt.offsetMax = Vector2.zero;
+            vpRt.offsetMin = vpRt.offsetMax = Vector2.zero;
             vpGo.AddComponent<Image>().color = Color.clear;
             vpGo.AddComponent<Mask>().showMaskGraphic = false;
             scroll.viewport = vpRt;
@@ -112,358 +165,223 @@ namespace BoplMapEditor.UI
             contentRt.anchorMin = new Vector2(0f, 1f);
             contentRt.anchorMax = new Vector2(1f, 1f);
             contentRt.pivot     = new Vector2(0.5f, 1f);
-            contentRt.offsetMin = Vector2.zero;
-            contentRt.offsetMax = Vector2.zero;
+            contentRt.offsetMin = contentRt.offsetMax = Vector2.zero;
 
             var vlg = contentGo.AddComponent<VerticalLayoutGroup>();
-            vlg.padding = new RectOffset(28, 28, 16, 16);
-            vlg.spacing = 6f;
+            vlg.padding              = new RectOffset(32, 32, 20, 20);
+            vlg.spacing              = 8f;
             vlg.childForceExpandWidth  = true;
             vlg.childForceExpandHeight = false;
-
             contentGo.AddComponent<ContentSizeFitter>().verticalFit =
                 ContentSizeFitter.FitMode.PreferredSize;
 
             _listContent = contentRt;
             scroll.content = contentRt;
-
-            // ── New-map dialog (modal) ─────────────────────────────────────
-            BuildNewMapDialog(root);
         }
 
-        // ── Header ────────────────────────────────────────────────────────
+        // ── Header button helper ──────────────────────────────────────────
 
-        private void BuildHeader(RectTransform header)
-        {
-            var layout = header.gameObject.AddComponent<HorizontalLayoutGroup>();
-            layout.padding = new RectOffset(28, 18, 0, 0);
-            layout.spacing = 12;
-            layout.childAlignment         = TextAnchor.MiddleLeft;
-            layout.childForceExpandHeight = true;
-            layout.childForceExpandWidth  = false;
-
-            // Title — big, bold, all-caps game style
-            var titleGo  = new GameObject("Title");
-            titleGo.transform.SetParent(header, false);
-            var titleTmp = titleGo.AddComponent<TextMeshProUGUI>();
-            StyleHelper.StyleText(titleTmp, 28f, bold: true);
-            titleTmp.text      = "🗺 MY MAPS";
-            titleTmp.color     = StyleHelper.TextPrimary;
-            titleTmp.fontStyle = FontStyles.Bold | FontStyles.UpperCase;
-            titleTmp.alignment = TextAlignmentOptions.Left;
-            titleGo.AddComponent<LayoutElement>().minWidth = 200;
-
-            // Spacer
-            var spacer = new GameObject("Spacer");
-            spacer.transform.SetParent(header, false);
-            spacer.AddComponent<LayoutElement>().flexibleWidth = 1;
-
-            // + New Map (orange oval, chunky)
-            var newBtn = AddHeaderButton(header, "+ New Map", StyleHelper.Orange, minWidth: 130, height: 44);
-            newBtn.onClick.AddListener(OpenNewMapDialog);
-
-            // ✕ Close (red oval)
-            var closeBtn = AddHeaderButton(header, "✕ Close",
-                new Color(0.75f, 0.15f, 0.15f, 1f), minWidth: 90, height: 44);
-            closeBtn.onClick.AddListener(Close);
-        }
-
-        private Button AddHeaderButton(RectTransform parent, string text, Color color,
-            float minWidth = 100, float height = 38)
+        Button MakeHeaderButton(Transform parent, string text, Color color, float minW, float h)
         {
             var go = new GameObject("HBtn_" + text);
             go.transform.SetParent(parent, false);
 
+            // Rounded white-ish panel matching game button style
             var img   = go.AddComponent<Image>();
             img.color  = color;
-            img.sprite = StyleHelper.GetButtonSprite();
+            img.sprite = StyleHelper.MakeRoundedSprite();
             img.type   = Image.Type.Sliced;
 
             var btn = go.AddComponent<Button>();
-            StyleHelper.StyleButton(btn, color);
-            StyleHelper.AddPressColorSwap(btn);
+            var cols = btn.colors;
+            cols.normalColor      = color;
+            cols.highlightedColor = new Color(
+                Mathf.Min(color.r + 0.12f, 1f),
+                Mathf.Min(color.g + 0.12f, 1f),
+                Mathf.Min(color.b + 0.12f, 1f), 1f);
+            cols.pressedColor  = _darkBlue;
+            cols.fadeDuration  = 0.07f;
+            btn.colors = cols;
 
             var le = go.AddComponent<LayoutElement>();
-            le.minWidth   = minWidth;
-            le.minHeight  = height;
-            le.flexibleHeight = 0;
-
-            var lblGo = new GameObject("L");
-            lblGo.transform.SetParent(go.transform, false);
-            var tmp = lblGo.AddComponent<TextMeshProUGUI>();
-            StyleHelper.StyleText(tmp, 14f, bold: true);
-            tmp.text = text;
-            tmp.fontStyle = FontStyles.Bold | FontStyles.UpperCase;
-            tmp.raycastTarget = false;
-            var lrt = lblGo.GetComponent<RectTransform>();
-            lrt.anchorMin = Vector2.zero;
-            lrt.anchorMax = Vector2.one;
-            lrt.offsetMin = new Vector2(10, 0);
-            lrt.offsetMax = new Vector2(-10, 0);
-
-            return btn;
-        }
-
-        // ── New-map dialog ────────────────────────────────────────────────
-
-        private void BuildNewMapDialog(RectTransform root)
-        {
-            _newMapDialog = new GameObject("NewMapDialog");
-            _newMapDialog.transform.SetParent(root, false);
-
-            var overlay = _newMapDialog.AddComponent<Image>();
-            overlay.color = new Color(0f, 0f, 0f, 0.78f);
-            var ort = _newMapDialog.GetComponent<RectTransform>();
-            ort.anchorMin = Vector2.zero;
-            ort.anchorMax = Vector2.one;
-            ort.offsetMin = ort.offsetMax = Vector2.zero;
-
-            // Dialog box: 400 × 240 — centered, rounded panel
-            var box = UIBuilder.Panel(ort, "Box",
-                new Color(0.07f, 0.11f, 0.20f, 1f),
-                new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f),
-                new Vector2(-200f, -120f), new Vector2(200f, 120f));
-
-            var layout = box.gameObject.AddComponent<VerticalLayoutGroup>();
-            layout.padding = new RectOffset(28, 28, 22, 22);
-            layout.spacing = 14;
-            layout.childForceExpandWidth  = true;
-            layout.childForceExpandHeight = false;
-
-            // Title — large, bold, game style
-            var titleGo  = new GameObject("Title");
-            titleGo.transform.SetParent(box, false);
-            var titleTmp = titleGo.AddComponent<TextMeshProUGUI>();
-            StyleHelper.StyleText(titleTmp, 22f, bold: true);
-            titleTmp.text      = "NEW MAP";
-            titleTmp.fontStyle = FontStyles.Bold | FontStyles.UpperCase;
-            titleTmp.alignment = TextAlignmentOptions.Center;
-            titleGo.AddComponent<LayoutElement>().minHeight = 30;
-
-            UIBuilder.AddRule(box, StyleHelper.DarkBorder);
-
-            // Input field
-            _newMapNameField = UIBuilder.MakeInputField(box, "Enter map name...",
-                Vector2.zero, new Vector2(344f, 42f));
-            _newMapNameField.gameObject.AddComponent<LayoutElement>().minHeight = 42;
-            _newMapNameField.onValueChanged.AddListener(_ => ClearError());
-
-            // Error label
-            var errGo  = new GameObject("Error");
-            errGo.transform.SetParent(box, false);
-            _newMapError = errGo.AddComponent<TextMeshProUGUI>();
-            StyleHelper.StyleText(_newMapError, 12f);
-            _newMapError.color     = new Color(1f, 0.35f, 0.35f, 1f);
-            _newMapError.text      = "";
-            _newMapError.alignment = TextAlignmentOptions.Center;
-            errGo.AddComponent<LayoutElement>().minHeight = 16;
-
-            // Button row
-            var btnRow = new GameObject("Buttons");
-            btnRow.transform.SetParent(box, false);
-            var hlg = btnRow.AddComponent<HorizontalLayoutGroup>();
-            hlg.spacing               = 12;
-            hlg.childForceExpandWidth  = true;
-            hlg.childForceExpandHeight = true;
-            btnRow.AddComponent<LayoutElement>().minHeight = 42;
-
-            var cancelBtn = UIBuilder.MakeButton(btnRow.GetComponent<RectTransform>(),
-                "Cancel", StyleHelper.DarkBlue, Vector2.zero, Vector2.zero);
-            cancelBtn.onClick.AddListener(CloseNewMapDialog);
-
-            var createBtn = UIBuilder.MakeButton(btnRow.GetComponent<RectTransform>(),
-                "Create", StyleHelper.Orange, Vector2.zero, Vector2.zero);
-            createBtn.onClick.AddListener(OnCreateMap);
-
-            _newMapDialog.SetActive(false);
-        }
-
-        private void OpenNewMapDialog()
-        {
-            _newMapNameField.text = "";
-            _newMapError.text     = "";
-            _newMapDialog.SetActive(true);
-            _newMapNameField.Select();
-        }
-
-        private void CloseNewMapDialog() => _newMapDialog.SetActive(false);
-        private void ClearError()        => _newMapError.text = "";
-
-        private void OnCreateMap()
-        {
-            string name = _newMapNameField.text.Trim();
-
-            if (string.IsNullOrEmpty(name))
-            {
-                _newMapError.text = "Please enter a map name.";
-                return;
-            }
-
-            foreach (var existing in MapSerializer.ListMaps())
-            {
-                if (string.Equals(existing, name, StringComparison.OrdinalIgnoreCase))
-                {
-                    _newMapError.text = "A map named \"" + name + "\" already exists.";
-                    return;
-                }
-            }
-
-            foreach (var def in DefaultMaps.GetDefaults())
-            {
-                if (string.Equals(def.Name, name, StringComparison.OrdinalIgnoreCase))
-                {
-                    _newMapError.text = "\"" + name + "\" is a default map name. Use a different name.";
-                    return;
-                }
-            }
-
-            var newMap = new MapData(name);
-            MapSerializer.SaveMap(newMap, name);
-            CloseNewMapDialog();
-            Close();
-            _editorWindow.Open(newMap);
-        }
-
-        // ── Map list ──────────────────────────────────────────────────────
-
-        public void Refresh()
-        {
-            foreach (Transform child in _listContent) Destroy(child.gameObject);
-
-            var allMaps = new List<MapEntry>();
-
-            foreach (var def in DefaultMaps.GetDefaults())
-                allMaps.Add(new MapEntry(def, true, null));
-
-            foreach (var fname in MapSerializer.ListMaps())
-            {
-                var map = MapSerializer.LoadMap(fname);
-                if (map != null) allMaps.Add(new MapEntry(map, false, fname));
-            }
-
-            bool alternate = false;
-            foreach (var entry in allMaps)
-            {
-                SpawnRow(entry.Map, entry.IsDefault, entry.FileName, alternate);
-                alternate = !alternate;
-            }
-        }
-
-        private void SpawnRow(MapData map, bool isDefault, string? fileName, bool altBg)
-        {
-            var rowGo = new GameObject("Row_" + map.Name);
-            rowGo.transform.SetParent(_listContent, false);
-
-            // Row background — blue game tones, taller rows
-            var rowImg = rowGo.AddComponent<Image>();
-            rowImg.color = isDefault
-                ? new Color(0.10f, 0.20f, 0.35f, altBg ? 0.95f : 0.80f)
-                : new Color(0.08f, 0.15f, 0.25f, altBg ? 0.95f : 0.80f);
-            rowImg.sprite = StyleHelper.GetButtonSprite();
-            rowImg.type   = Image.Type.Sliced;
-
-            var rowHlg = rowGo.AddComponent<HorizontalLayoutGroup>();
-            rowHlg.padding = new RectOffset(14, 10, 6, 6);
-            rowHlg.spacing = 10;
-            rowHlg.childAlignment         = TextAnchor.MiddleLeft;
-            rowHlg.childForceExpandWidth  = false;
-            rowHlg.childForceExpandHeight = true;
-            rowGo.AddComponent<LayoutElement>().minHeight = 56f;
-
-            // Map name — bigger, bold, white
-            var nameGo  = new GameObject("Name");
-            nameGo.transform.SetParent(rowGo.transform, false);
-            var nameTmp = nameGo.AddComponent<TextMeshProUGUI>();
-            StyleHelper.StyleText(nameTmp, 18f, bold: true);
-            nameTmp.text          = map.Name;
-            nameTmp.color         = StyleHelper.TextPrimary;
-            nameTmp.alignment     = TextAlignmentOptions.Left;
-            nameTmp.overflowMode  = TextOverflowModes.Ellipsis;
-            nameTmp.raycastTarget = false;
-            nameGo.AddComponent<LayoutElement>().flexibleWidth = 1;
-
-            // DEFAULT badge
-            if (isDefault)
-            {
-                var badgeGo  = new GameObject("Badge");
-                badgeGo.transform.SetParent(rowGo.transform, false);
-                var badgeImg = badgeGo.AddComponent<Image>();
-                badgeImg.color  = new Color(StyleHelper.Blue.r, StyleHelper.Blue.g, StyleHelper.Blue.b, 0.80f);
-                badgeImg.sprite = StyleHelper.MakeRoundedSpriteSmall();
-                badgeImg.type   = Image.Type.Sliced;
-                var badgeLe = badgeGo.AddComponent<LayoutElement>();
-                badgeLe.minWidth  = 68f;
-                badgeLe.minHeight = 24f;
-                badgeLe.flexibleHeight = 0;
-
-                var badgeTxtGo  = new GameObject("T");
-                badgeTxtGo.transform.SetParent(badgeGo.transform, false);
-                var badgeTmp = badgeTxtGo.AddComponent<TextMeshProUGUI>();
-                StyleHelper.StyleText(badgeTmp, 10f, bold: true);
-                badgeTmp.text          = "DEFAULT";
-                badgeTmp.fontStyle     = FontStyles.Bold | FontStyles.UpperCase;
-                badgeTmp.raycastTarget = false;
-                var brt = badgeTxtGo.GetComponent<RectTransform>();
-                brt.anchorMin = Vector2.zero; brt.anchorMax = Vector2.one;
-                brt.offsetMin = new Vector2(4, 2); brt.offsetMax = new Vector2(-4, -2);
-            }
-
-            // Platform count — muted, smaller
-            var countGo  = new GameObject("Count");
-            countGo.transform.SetParent(rowGo.transform, false);
-            var countTmp = countGo.AddComponent<TextMeshProUGUI>();
-            StyleHelper.StyleText(countTmp, 13f);
-            countTmp.text          = map.Platforms.Count + " platforms";
-            countTmp.color         = StyleHelper.TextSecondary;
-            countTmp.alignment     = TextAlignmentOptions.Right;
-            countTmp.raycastTarget = false;
-            countGo.AddComponent<LayoutElement>().minWidth = 96f;
-
-            // [Edit] button — blue oval, chunky
-            var editBtn = MakeRowButton(rowGo.transform, "Edit", StyleHelper.Blue, 70f, 36f);
-            var captureMap = map;
-            editBtn.onClick.AddListener(() => {
-                Close();
-                _editorWindow.Open(captureMap.Clone());
-            });
-
-            // [Del] button — red oval, user maps only
-            if (!isDefault && fileName != null)
-            {
-                string captureName = fileName;
-                var delBtn = MakeRowButton(rowGo.transform, "Del",
-                    new Color(0.72f, 0.12f, 0.12f, 0.95f), 44f, 36f);
-                delBtn.onClick.AddListener(() => {
-                    MapSerializer.DeleteMap(captureName);
-                    Refresh();
-                });
-            }
-        }
-
-        private Button MakeRowButton(Transform parent, string text, Color color, float w, float h)
-        {
-            var go = new GameObject("RBtn_" + text);
-            go.transform.SetParent(parent, false);
-
-            var img   = go.AddComponent<Image>();
-            img.color  = color;
-            img.sprite = StyleHelper.GetButtonSprite();
-            img.type   = Image.Type.Sliced;
-
-            var btn = go.AddComponent<Button>();
-            StyleHelper.StyleButton(btn, color);
-            StyleHelper.AddPressColorSwap(btn);
-
-            var le = go.AddComponent<LayoutElement>();
-            le.minWidth   = w;
+            le.minWidth   = minW;
             le.minHeight  = h;
             le.flexibleHeight = 0;
 
             var lblGo = new GameObject("L");
             lblGo.transform.SetParent(go.transform, false);
             var tmp = lblGo.AddComponent<TextMeshProUGUI>();
-            StyleHelper.StyleText(tmp, 13f, bold: true);
-            tmp.text      = text;
+            ApplyGameFont(tmp, 15f, bold: true);
+            tmp.text = text;
+            tmp.fontStyle = FontStyles.Bold | FontStyles.UpperCase;
+            tmp.raycastTarget = false;
+            var lrt = lblGo.GetComponent<RectTransform>();
+            lrt.anchorMin = Vector2.zero;
+            lrt.anchorMax = Vector2.one;
+            lrt.offsetMin = new Vector2(12, 0);
+            lrt.offsetMax = new Vector2(-12, 0);
+
+            return btn;
+        }
+
+        // ── Refresh list ──────────────────────────────────────────────────
+
+        public void Refresh()
+        {
+            foreach (Transform child in _listContent)
+                Destroy(child.gameObject);
+
+            var allMaps = new List<(MapData map, bool isDefault, string? file)>();
+
+            foreach (var def in DefaultMaps.GetDefaults())
+                allMaps.Add((def, true, null));
+
+            foreach (var fname in MapSerializer.ListMaps())
+            {
+                var map = MapSerializer.LoadMap(fname);
+                if (map != null) allMaps.Add((map, false, fname));
+            }
+
+            if (allMaps.Count == 0)
+            {
+                SpawnEmptyHint();
+                return;
+            }
+
+            bool alt = false;
+            foreach (var (map, isDefault, file) in allMaps)
+            {
+                SpawnRow(map, isDefault, file, alt);
+                alt = !alt;
+            }
+        }
+
+        void SpawnEmptyHint()
+        {
+            var go = new GameObject("Hint");
+            go.transform.SetParent(_listContent, false);
+            var tmp = go.AddComponent<TextMeshProUGUI>();
+            ApplyGameFont(tmp, 20f, bold: false);
+            tmp.text      = "No maps yet. Press + New Map to create one!";
+            tmp.color     = new Color(1f, 1f, 1f, 0.55f);
+            tmp.alignment = TextAlignmentOptions.Center;
+            go.AddComponent<LayoutElement>().minHeight = 80f;
+        }
+
+        void SpawnRow(MapData map, bool isDefault, string? fileName, bool altBg)
+        {
+            var rowGo = new GameObject("Row_" + map.Name);
+            rowGo.transform.SetParent(_listContent, false);
+
+            // Row card — white-ish translucent panel
+            var rowImg = rowGo.AddComponent<Image>();
+            rowImg.color  = altBg
+                ? new Color(1f, 1f, 1f, 0.20f)
+                : new Color(1f, 1f, 1f, 0.12f);
+            rowImg.sprite = StyleHelper.MakeRoundedSprite();
+            rowImg.type   = Image.Type.Sliced;
+
+            var rowHlg = rowGo.AddComponent<HorizontalLayoutGroup>();
+            rowHlg.padding               = new RectOffset(18, 12, 0, 0);
+            rowHlg.spacing               = 12;
+            rowHlg.childAlignment         = TextAnchor.MiddleLeft;
+            rowHlg.childForceExpandWidth  = false;
+            rowHlg.childForceExpandHeight = true;
+            rowGo.AddComponent<LayoutElement>().minHeight = 60f;
+
+            // Map name
+            var nameGo  = new GameObject("Name");
+            nameGo.transform.SetParent(rowGo.transform, false);
+            var nameTmp = nameGo.AddComponent<TextMeshProUGUI>();
+            ApplyGameFont(nameTmp, 20f, bold: true);
+            nameTmp.text         = map.Name;
+            nameTmp.color        = White;
+            nameTmp.alignment    = TextAlignmentOptions.Left;
+            nameTmp.overflowMode = TextOverflowModes.Ellipsis;
+            nameTmp.raycastTarget = false;
+            nameGo.AddComponent<LayoutElement>().flexibleWidth = 1;
+
+            // DEFAULT badge
+            if (isDefault)
+            {
+                var badgeGo = new GameObject("Badge");
+                badgeGo.transform.SetParent(rowGo.transform, false);
+                var badgeImg = badgeGo.AddComponent<Image>();
+                badgeImg.color  = new Color(1f, 1f, 1f, 0.25f);
+                badgeImg.sprite = StyleHelper.MakeRoundedSpriteSmall();
+                badgeImg.type   = Image.Type.Sliced;
+                var ble = badgeGo.AddComponent<LayoutElement>();
+                ble.minWidth = 72f; ble.minHeight = 26f; ble.flexibleHeight = 0;
+
+                var btGo = new GameObject("T");
+                btGo.transform.SetParent(badgeGo.transform, false);
+                var btTmp = btGo.AddComponent<TextMeshProUGUI>();
+                ApplyGameFont(btTmp, 10f, bold: true);
+                btTmp.text      = "DEFAULT";
+                btTmp.fontStyle = FontStyles.Bold | FontStyles.UpperCase;
+                btTmp.color     = White;
+                btTmp.raycastTarget = false;
+                var brt = btGo.GetComponent<RectTransform>();
+                brt.anchorMin = Vector2.zero; brt.anchorMax = Vector2.one;
+                brt.offsetMin = new Vector2(4, 2); brt.offsetMax = new Vector2(-4, -2);
+            }
+
+            // Platform count
+            var cntGo  = new GameObject("Count");
+            cntGo.transform.SetParent(rowGo.transform, false);
+            var cntTmp = cntGo.AddComponent<TextMeshProUGUI>();
+            ApplyGameFont(cntTmp, 13f, bold: false);
+            cntTmp.text          = map.Platforms.Count + " platforms";
+            cntTmp.color         = new Color(1f, 1f, 1f, 0.65f);
+            cntTmp.alignment     = TextAlignmentOptions.Right;
+            cntTmp.raycastTarget = false;
+            cntGo.AddComponent<LayoutElement>().minWidth = 100f;
+
+            // Edit button
+            var captureMap = map;
+            var editBtn = MakeRowButton(rowGo.transform, "Edit", _blue, 72f, 38f);
+            editBtn.onClick.AddListener(() => { Close(); _editorScreen.Open(captureMap.Clone()); });
+
+            // Delete button (user maps only)
+            if (!isDefault && fileName != null)
+            {
+                string capFile = fileName;
+                var delBtn = MakeRowButton(rowGo.transform, "Del",
+                    new Color(0.80f, 0.15f, 0.15f, 0.90f), 50f, 38f);
+                delBtn.onClick.AddListener(() => { MapSerializer.DeleteMap(capFile); Refresh(); });
+            }
+        }
+
+        Button MakeRowButton(Transform parent, string text, Color color, float w, float h)
+        {
+            var go = new GameObject("RBtn_" + text);
+            go.transform.SetParent(parent, false);
+
+            var img   = go.AddComponent<Image>();
+            img.color  = color;
+            img.sprite = StyleHelper.MakeRoundedSprite();
+            img.type   = Image.Type.Sliced;
+
+            var btn = go.AddComponent<Button>();
+            var cols = btn.colors;
+            cols.normalColor     = color;
+            cols.highlightedColor = new Color(
+                Mathf.Min(color.r + 0.15f, 1f),
+                Mathf.Min(color.g + 0.15f, 1f),
+                Mathf.Min(color.b + 0.15f, 1f), 1f);
+            cols.pressedColor = _darkBlue;
+            cols.fadeDuration = 0.07f;
+            btn.colors = cols;
+
+            go.AddComponent<LayoutElement>().minWidth  = w;
+            go.GetComponent<LayoutElement>().minHeight = h;
+            go.GetComponent<LayoutElement>().flexibleHeight = 0;
+
+            var lblGo = new GameObject("L");
+            lblGo.transform.SetParent(go.transform, false);
+            var tmp = lblGo.AddComponent<TextMeshProUGUI>();
+            ApplyGameFont(tmp, 13f, bold: true);
+            tmp.text = text;
             tmp.fontStyle = FontStyles.Bold | FontStyles.UpperCase;
             tmp.raycastTarget = false;
             var lrt = lblGo.GetComponent<RectTransform>();
@@ -473,20 +391,35 @@ namespace BoplMapEditor.UI
             return btn;
         }
 
-        // ── Internal data class ───────────────────────────────────────────
+        // ── New map (placeholder — dialog via editorWindow later) ─────────
 
-        private class MapEntry
+        void OnNewMap()
         {
-            public readonly MapData Map;
-            public readonly bool    IsDefault;
-            public readonly string? FileName;
+            // TODO: open new map dialog
+            // For now just create an untitled map and open editor
+            string name = "Map_" + DateTime.Now.ToString("HHmmss");
+            var newMap = new MapData(name);
+            MapSerializer.SaveMap(newMap, name);
+            Close();
+            _editorScreen.Open(newMap);
+        }
 
-            public MapEntry(MapData map, bool isDefault, string? fileName)
+        // ── Font helper ───────────────────────────────────────────────────
+
+        static void ApplyGameFont(TextMeshProUGUI tmp, float size, bool bold)
+        {
+            try
             {
-                Map       = map;
-                IsDefault = isDefault;
-                FileName  = fileName;
+                var font = LocalizedText.localizationTable
+                    ?.GetFont(Settings.Get().Language, useFontWithStroke: false);
+                if (font != null) tmp.font = font;
             }
+            catch { /* font not ready yet — Unity default is fine */ }
+
+            tmp.fontSize  = size;
+            tmp.fontStyle = bold ? FontStyles.Bold : FontStyles.Normal;
+            tmp.color     = White;
+            tmp.enableWordWrapping = false;
         }
     }
 }

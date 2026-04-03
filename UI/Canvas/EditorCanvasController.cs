@@ -73,7 +73,9 @@ namespace BoplMapEditor.UI
         void Update()
         {
             if (_ctrl == null) return;
-            if (_ctrl.ActiveTool == EditorTool.Place)
+            bool showingGhost = _ctrl.ActiveTool == EditorTool.Place ||
+                                _ctrl.ActiveTool == EditorTool.DirectManipulation;
+            if (showingGhost && _draggingPlatform < 0)
             {
                 Vector2 screenPos = Input.mousePosition;
                 Vector2 localPos;
@@ -121,7 +123,19 @@ namespace BoplMapEditor.UI
             }
         }
 
-        // Called from PlatformWidget
+        // Called from PlatformWidget — right mouse button on a platform
+        public void OnPlatformRightClick(int index, PointerEventData e)
+        {
+            if (_ctrl.ActiveTool == EditorTool.DirectManipulation ||
+                _ctrl.ActiveTool == EditorTool.Delete)
+            {
+                _ctrl.SelectedPlatformIndex = index;
+                _ctrl.DeleteSelected();
+                Refresh();
+            }
+        }
+
+        // Called from PlatformWidget — left mouse button on a platform
         public void OnPlatformPointerDown(int index, PointerEventData e)
         {
             if (_ctrl.ActiveTool == EditorTool.Delete)
@@ -173,16 +187,22 @@ namespace BoplMapEditor.UI
             RefreshPositions();
         }
 
-        // Click on empty canvas → place platform
+        // Click on empty canvas
         public void OnPointerClick(PointerEventData e)
         {
-            if (_ctrl.ActiveTool != EditorTool.Place) return;
-            if (e.button != PointerEventData.InputButton.Left) return;
+            bool isPlace  = _ctrl.ActiveTool == EditorTool.Place;
+            bool isDirect = _ctrl.ActiveTool == EditorTool.DirectManipulation;
 
-            Vector2 worldPos = EditorViewport.CanvasToWorld(ScreenToCanvas(e.position));
-            worldPos = _ctrl.Snap(worldPos);
-            _ctrl.AddPlatform(worldPos);
-            Refresh();
+            if (e.button == PointerEventData.InputButton.Left && (isPlace || isDirect))
+            {
+                Vector2 worldPos = EditorViewport.CanvasToWorld(ScreenToCanvas(e.position));
+                worldPos = _ctrl.Snap(worldPos);
+                _ctrl.AddPlatform(worldPos);
+                Refresh();
+                // Trigger spawn bounce on the newly placed widget
+                if (_widgets.Count > 0)
+                    _widgets[_widgets.Count - 1].PlaySpawnAnimation();
+            }
         }
 
         // Scroll to zoom
@@ -194,7 +214,9 @@ namespace BoplMapEditor.UI
             UpdateWorldBoundsVisual();
         }
 
-        // Middle mouse / right mouse to pan
+        // Middle mouse pan always. Right mouse pans when in DirectManipulation
+        // (right-click on a platform is caught by PlatformWidget first, so this only
+        //  fires when right-dragging on empty canvas).
         public void OnBeginDrag(PointerEventData e)
         {
             _isPanning = e.button == PointerEventData.InputButton.Middle ||

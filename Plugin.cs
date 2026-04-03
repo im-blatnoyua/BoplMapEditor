@@ -20,23 +20,31 @@ namespace BoplMapEditor
         private static MapEditorWindow? _editorWindow;
         private static MapBrowserScreen? _browserScreen;
 
-        // Created lazily on first use (after Unity rendering is ready)
+        // EditorWindow is created lazily (has its own canvas, always available)
         public static MapEditorWindow EditorWindow
         {
-            get { if (_editorWindow == null) CreateScreens(); return _editorWindow!; }
-        }
-        public static MapBrowserScreen BrowserScreen
-        {
-            get { if (_browserScreen == null) CreateScreens(); return _browserScreen!; }
+            get { if (_editorWindow == null) CreateEditorWindow(); return _editorWindow!; }
         }
 
-        private static void CreateScreens()
+        // BrowserScreen is injected into the lobby canvas by LobbyButtonPatch.
+        // Call SetBrowserScreen() from the patch; fallback creates standalone version.
+        public static MapBrowserScreen BrowserScreen
+        {
+            get { if (_browserScreen == null) CreateEditorWindow(); return _browserScreen!; }
+        }
+
+        // Called by LobbyButtonPatch when it has access to the game's canvas and colors
+        public static void SetBrowserScreen(MapBrowserScreen screen)
+        {
+            _browserScreen = screen;
+        }
+
+        private static void CreateEditorWindow()
         {
             if (_editorWindow != null) return;
-            Log.LogInfo("[BoplMapEditor] Creating editor screens...");
+            Log.LogInfo("[BoplMapEditor] Creating MapEditorWindow...");
             _editorWindow = MapEditorWindow.Create(Editor);
-            _browserScreen = MapBrowserScreen.Create(_editorWindow);
-            Log.LogInfo("[BoplMapEditor] Editor screens created OK.");
+            Log.LogInfo("[BoplMapEditor] MapEditorWindow created OK.");
         }
 
         void Awake()

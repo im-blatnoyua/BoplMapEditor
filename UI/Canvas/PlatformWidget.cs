@@ -8,7 +8,8 @@ namespace BoplMapEditor.UI
     // UGUI widget representing one platform in the editor canvas.
     // Uses the game's actual platform shader material when available.
     public class PlatformWidget : MonoBehaviour,
-        IPointerDownHandler, IPointerUpHandler, IDragHandler
+        IPointerDownHandler, IPointerUpHandler, IDragHandler,
+        IPointerEnterHandler, IPointerExitHandler
     {
         public int PlatformIndex;
         public bool IsSelected;
@@ -16,6 +17,7 @@ namespace BoplMapEditor.UI
         private RawImage _body = null!;        // RawImage supports custom Materials
         private RectTransform _rt = null!;
         private GameObject _selectionBorder = null!;
+        private GameObject _hoverOverlay = null!;
         private EditorCanvasController _canvas = null!;
         private readonly GameObject[] _handles = new GameObject[8];
 
@@ -36,6 +38,10 @@ namespace BoplMapEditor.UI
             w._body.raycastTarget = true;
 
             w.ApplyMaterial(data.Type);
+
+            // Hover overlay (shows on mouse-enter, hidden by default)
+            w._hoverOverlay = CreateHoverOverlay(go.transform);
+            w._hoverOverlay.SetActive(false);
 
             // Selection border (rendered behind the body)
             w._selectionBorder = CreateBorder(go.transform);
@@ -117,8 +123,70 @@ namespace BoplMapEditor.UI
         {
             IsSelected = selected;
             _selectionBorder.SetActive(selected);
+            // Hide hover overlay when selected (selection border takes precedence)
+            if (selected && _hoverOverlay != null)
+                _hoverOverlay.SetActive(false);
             for (int i = 0; i < 8; i++)
                 _handles[i].SetActive(selected);
+        }
+
+        // Trigger the scale-in bounce animation (called after placement)
+        public void PlaySpawnAnimation()
+        {
+            var anim = gameObject.GetComponent<PlacementAnimator>()
+                       ?? gameObject.AddComponent<PlacementAnimator>();
+            anim.Play();
+        }
+
+        // ── Pointer events ────────────────────────────────────────────────
+
+        public void OnPointerEnter(PointerEventData e)
+        {
+            if (!IsSelected && _hoverOverlay != null)
+                _hoverOverlay.SetActive(true);
+        }
+
+        public void OnPointerExit(PointerEventData e)
+        {
+            if (_hoverOverlay != null)
+                _hoverOverlay.SetActive(false);
+        }
+
+        public void OnPointerDown(PointerEventData e)
+        {
+            // Right-click in DirectManipulation or Delete mode → delete
+            if (e.button == PointerEventData.InputButton.Right)
+            {
+                _canvas.OnPlatformRightClick(PlatformIndex, e);
+                return;
+            }
+            _canvas.OnPlatformPointerDown(PlatformIndex, e);
+        }
+
+        public void OnPointerUp(PointerEventData e) =>
+            _canvas.OnPlatformPointerUp(PlatformIndex, e);
+
+        public void OnDrag(PointerEventData e) =>
+            _canvas.OnPlatformDrag(PlatformIndex, e);
+
+        // ── Static factory helpers ────────────────────────────────────────
+
+        private static GameObject CreateHoverOverlay(Transform parent)
+        {
+            var go = new GameObject("Hover");
+            go.transform.SetParent(parent, false);
+            go.transform.SetAsLastSibling();
+            var img = go.AddComponent<Image>();
+            img.color = new Color(1f, 1f, 1f, 0.18f);
+            img.sprite = StyleHelper.MakeRoundedSprite();
+            img.type = Image.Type.Sliced;
+            img.raycastTarget = false;
+            var rt = go.GetComponent<RectTransform>();
+            rt.anchorMin = Vector2.zero;
+            rt.anchorMax = Vector2.one;
+            rt.offsetMin = new Vector2(-2, -2);
+            rt.offsetMax = new Vector2(2, 2);
+            return go;
         }
 
         private static GameObject CreateBorder(Transform parent)
@@ -150,12 +218,5 @@ namespace BoplMapEditor.UI
             go.SetActive(false);
             return go;
         }
-
-        public void OnPointerDown(PointerEventData e) =>
-            _canvas.OnPlatformPointerDown(PlatformIndex, e);
-        public void OnPointerUp(PointerEventData e) =>
-            _canvas.OnPlatformPointerUp(PlatformIndex, e);
-        public void OnDrag(PointerEventData e) =>
-            _canvas.OnPlatformDrag(PlatformIndex, e);
     }
 }

@@ -6,7 +6,7 @@ using UnityEngine;
 
 namespace BoplMapEditor.Core
 {
-    public enum EditorTool { Select, Place, Delete }
+    public enum EditorTool { Select, Place, Delete, DirectManipulation }
 
     public struct IslandPreset
     {
@@ -70,7 +70,7 @@ namespace BoplMapEditor.Core
             IsOpen = true;
             CurrentMap = existing?.Clone() ?? new MapData("Untitled");
             SelectedPlatformIndex = -1;
-            ActiveTool = EditorTool.Place; // start in Place mode so user can immediately add blocks
+            ActiveTool = EditorTool.DirectManipulation; // direct manipulation: left=place, right=delete, drag=move
             History.Clear();
         }
 
@@ -205,7 +205,19 @@ namespace BoplMapEditor.Core
             var p = new PlatformData(worldPos.x, worldPos.y, preset.hw, preset.hh, preset.radius, 0f, PlacePlatformType);
             History.Push(new AddPlatformCommand(p));
             SelectedPlatformIndex = CurrentMap.Platforms.Count - 1;
-            ActiveTool = EditorTool.Select;
+            // Stay in DirectManipulation mode — no mode switch needed
+        }
+
+        // Delete the platform at a world position. Returns true if something was deleted.
+        public bool DeleteAtPosition(Vector2 worldPos)
+        {
+            int hit = HitTestPlatforms(worldPos);
+            if (hit < 0) return false;
+            var p = CurrentMap.Platforms[hit];
+            History.Push(new DeletePlatformCommand(hit, p));
+            if (SelectedPlatformIndex >= hit)
+                SelectedPlatformIndex = Mathf.Clamp(SelectedPlatformIndex - 1, -1, CurrentMap.Platforms.Count - 1);
+            return true;
         }
 
         public void DeleteSelected()

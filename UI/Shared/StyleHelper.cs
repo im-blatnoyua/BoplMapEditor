@@ -79,42 +79,56 @@ namespace BoplMapEditor.UI
             return null;
         }
 
-        // ── Platform materials ────────────────────────────────────────────
+        // ── Platform sprites & materials ──────────────────────────────────
         private static readonly Material?[] _platformMaterials = new Material[6];
-        private static bool _materialsScanned;
+        private static readonly Sprite?[]   _platformSprites   = new Sprite[6];
+        private static bool _platformsScanned;
 
         public static Material? GetPlatformMaterial(int type)
         {
-            if (!_materialsScanned) ScanPlatformMaterials();
+            if (!_platformsScanned) ScanPlatformAssets();
             return _platformMaterials[Mathf.Clamp(type, 0, 5)];
         }
 
-        public static void ScanPlatformMaterials()
+        public static Sprite? GetPlatformSprite(int type)
         {
-            if (_materialsScanned) return;
-            _materialsScanned = true;
+            if (!_platformsScanned) ScanPlatformAssets();
+            return _platformSprites[Mathf.Clamp(type, 0, 5)];
+        }
+
+        // Legacy name kept for callers that still use it
+        public static void ScanPlatformMaterials() => ScanPlatformAssets();
+
+        public static void ScanPlatformAssets()
+        {
+            if (_platformsScanned) return;
+            _platformsScanned = true;
 
             var platforms = Object.FindObjectsOfType<StickyRoundedRectangle>(true);
             foreach (var p in platforms)
             {
                 int t = (int)p.platformType;
                 if (t < 0 || t >= 6) continue;
-                if (_platformMaterials[t] != null) continue;
 
                 var sr = p.GetComponent<SpriteRenderer>();
-                if (sr != null && sr.material != null)
+                if (sr == null) continue;
+
+                if (_platformMaterials[t] == null && sr.material != null)
                     _platformMaterials[t] = sr.material;
+
+                if (_platformSprites[t] == null && sr.sprite != null)
+                    _platformSprites[t] = sr.sprite;
             }
 
             int found = 0;
-            foreach (var m in _platformMaterials) if (m != null) found++;
-            Plugin.Log.LogInfo($"[StyleHelper] Scanned platform materials: {found}/6 found.");
+            for (int i = 0; i < 6; i++) if (_platformSprites[i] != null) found++;
+            Plugin.Log.LogInfo($"[StyleHelper] Scanned platform assets: {found}/6 sprites found.");
         }
 
         public static void InvalidateMaterialCache()
         {
-            _materialsScanned = false;
-            for (int i = 0; i < 6; i++) _platformMaterials[i] = null;
+            _platformsScanned = false;
+            for (int i = 0; i < 6; i++) { _platformMaterials[i] = null; _platformSprites[i] = null; }
         }
 
         // ── Platform display colors (fallback when material not found) ────
