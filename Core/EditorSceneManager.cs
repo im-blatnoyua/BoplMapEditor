@@ -8,7 +8,7 @@ namespace BoplMapEditor.Core
 {
     public static class EditorSceneManager
     {
-        public static bool     IsEditorScene  { get; private set; }
+        public static bool     IsEditorScene  { get; set; }
         public static MapData? PendingMap     { get; private set; }
         public static string   ReturnScene      { get; set; } = "CharacterSelect";
         public static bool     ReopenBrowser    { get; set; } = false;

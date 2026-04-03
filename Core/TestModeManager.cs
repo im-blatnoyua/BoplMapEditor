@@ -11,10 +11,11 @@ namespace BoplMapEditor.Core
     // Patches GameSessionHandler to spawn player at our position.
     public static class TestModeManager
     {
-        public static bool   IsTestMode  { get; private set; }
-        public static float  SpawnX      { get; private set; }
-        public static float  SpawnY      { get; private set; }
-        public static string ReturnScene { get; private set; } = "CharacterSelect";
+        public static bool     IsTestMode  { get; private set; }
+        public static float    SpawnX      { get; private set; }
+        public static float    SpawnY      { get; private set; }
+        public static string   ReturnScene { get; private set; } = "CharacterSelect";
+        public static MapData? TestMap     { get; private set; }
 
         public static void StartTest(MapData map, string returnScene)
         {
@@ -26,10 +27,13 @@ namespace BoplMapEditor.Core
 
             // Pick spawn 1, fallback to first
             var sp = map.SpawnPoints.Find(s => s.PlayerId == 1) ?? map.SpawnPoints[0];
-            SpawnX     = sp.X;
-            SpawnY     = sp.Y;
+            SpawnX      = sp.X;
+            SpawnY      = sp.Y;
             ReturnScene = returnScene;
+            TestMap     = map;
             IsTestMode  = true;
+            // Allow GameSessionHandler to run — clear editor scene flag
+            EditorSceneManager.IsEditorScene = false;
 
             // Set up 1 keyboard player in PlayerHandler
             if (!SetupSoloPlayer())
@@ -116,8 +120,43 @@ namespace BoplMapEditor.Core
         static void OnTestLevelLoaded(Scene scene, LoadSceneMode mode)
         {
             SceneManager.sceneLoaded -= OnTestLevelLoaded;
-            Plugin.Log.LogInfo($"[TestMode] Level '{scene.name}' loaded.");
-            // GameSessionHandler.Init patch will override spawn
+            Plugin.Log.LogInfo($"[TestMode] Level '{scene.name}' loaded — applying custom platforms.");
+
+            if (TestMap == null) return;
+
+            // Get all platforms in the loaded scene
+            var platforms = new System.Collections.Generic.List<StickyRoundedRectangle>();
+            foreach (var root in scene.GetRootGameObjects())
+                platforms.AddRange(root.GetComponentsInChildren<StickyRoundedRectangle>(true));
+
+            Plugin.Log.LogInfo($"[TestMode] Found {platforms.Count} level platforms, map has {TestMap.Platforms.Count}");
+
+            // Reposition/resize Level1 platforms to match our map
+            for (int i = 0; i < platforms.Count; i++)
+            {
+                if (i < TestMap.Platforms.Count)
+                {
+                    var pd  = TestMap.Platforms[i];
+                    var srr = platforms[i];
+
+                    // Reposition
+                    var ft = srr.GetComponent<FixTransform>();
+                    if (ft != null)
+                        ft.position = new Vec2((Fix)pd.X, (Fix)pd.Y);
+
+                    // Resize
+                    var rp = srr.GetComponent<ResizablePlatform>();
+                    if (rp != null)
+                        rp.ResizePlatform((Fix)pd.HalfH, (Fix)pd.HalfW, (Fix)pd.Radius);
+
+                    srr.gameObject.SetActive(true);
+                }
+                else
+                {
+                    // Hide extra Level1 platforms we don't need
+                    platforms[i].gameObject.SetActive(false);
+                }
+            }
         }
 
         public static void End()
