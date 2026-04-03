@@ -121,8 +121,13 @@ namespace BoplMapEditor.Core
                     return false;
                 }
 
+                // Log all fields on PlayerHandler to find the real player list backing field
+                var ph = PlayerHandler.Get();
+                foreach (var f in typeof(PlayerHandler).GetFields(BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Public))
+                    Plugin.Log.LogInfo($"[TestMode] PlayerHandler field: {f.FieldType.Name} {f.Name} = {f.GetValue(ph)}");
+
                 // Build 1 solo player
-                var list = PlayerHandler.Get().PlayerList();
+                var list = ph.PlayerList();
                 list.Clear();
                 var player = new Player(1, 0);
                 player.Color              = material;
