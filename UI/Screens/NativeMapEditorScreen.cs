@@ -360,8 +360,8 @@ namespace BoplMapEditor.UI
             }
             else
             {
-                // Fallback — 6 material types
-                for (int mat = 0; mat < 6; mat++)
+                // Fallback — 5 used material types (no slime)
+                for (int mat = 0; mat < StyleHelper.PlatformTypeCount; mat++)
                 {
                     int captureMat = mat;
                     var entry = new StyleHelper.PlatformEntry
@@ -544,7 +544,7 @@ namespace BoplMapEditor.UI
             var dotGo = new GameObject("Dot");
             dotGo.transform.SetParent(go.transform, false);
             var dotImg = dotGo.AddComponent<Image>();
-            dotImg.color        = StyleHelper.PlatformColors[Mathf.Clamp(entry.MaterialType, 0, 5)];
+            dotImg.color        = StyleHelper.PlatformColors[Mathf.Clamp(entry.MaterialType, 0, 4)];
             dotImg.sprite       = StyleHelper.MakeRoundedSpriteSmall();
             dotImg.type         = Image.Type.Sliced;
             dotImg.raycastTarget = false;

@@ -1143,7 +1143,7 @@ namespace BoplMapEditor.UI
             {
                 var p = _ctrl.CurrentMap.Platforms[sel];
                 _selectedInfoLabel.text  = "#" + (sel + 1) + "  " +
-                    StyleHelper.PlatformNames[Mathf.Clamp(p.Type, 0, 5)];
+                    StyleHelper.PlatformNames[Mathf.Clamp(p.Type, 0, 4)];
                 _selectedInfoLabel.color = StyleHelper.TextSecondary;
                 if (_movPanel != null)
                 {

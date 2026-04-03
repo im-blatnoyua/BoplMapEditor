@@ -70,7 +70,7 @@ namespace BoplMapEditor.UI
             {
                 // Fallback: solid color
                 _body.material = null;
-                _body.color = StyleHelper.PlatformColors[Mathf.Clamp(type, 0, 5)];
+                _body.color = StyleHelper.PlatformColors[Mathf.Clamp(type, 0, 4)];
             }
         }
 

@@ -80,20 +80,20 @@ namespace BoplMapEditor.UI
         }
 
         // ── Platform sprites & materials ──────────────────────────────────
-        private static readonly Material?[] _platformMaterials = new Material[6];
+        private static readonly Material?[] _platformMaterials = new Material[5];
         private static readonly Sprite?[]   _platformSprites   = new Sprite[6];
         private static bool _platformsScanned;
 
         public static Material? GetPlatformMaterial(int type)
         {
             if (!_platformsScanned) ScanPlatformAssets();
-            return _platformMaterials[Mathf.Clamp(type, 0, 5)];
+            return _platformMaterials[Mathf.Clamp(type, 0, 4)];
         }
 
         public static Sprite? GetPlatformSprite(int type)
         {
             if (!_platformsScanned) ScanPlatformAssets();
-            return _platformSprites[Mathf.Clamp(type, 0, 5)];
+            return _platformSprites[Mathf.Clamp(type, 0, 4)];
         }
 
         // Legacy name kept for callers that still use it
@@ -121,14 +121,14 @@ namespace BoplMapEditor.UI
             }
 
             int found = 0;
-            for (int i = 0; i < 6; i++) if (_platformSprites[i] != null) found++;
+            for (int i = 0; i < 5; i++) if (_platformSprites[i] != null) found++;
             Plugin.Log.LogInfo($"[StyleHelper] Scanned platform assets: {found}/6 sprites found.");
         }
 
         public static void InvalidateMaterialCache()
         {
             _platformsScanned = false;
-            for (int i = 0; i < 6; i++) { _platformMaterials[i] = null; _platformSprites[i] = null; }
+            for (int i = 0; i < 5; i++) { _platformMaterials[i] = null; _platformSprites[i] = null; }
             _scannedPlatforms.Clear();
         }
 
@@ -165,7 +165,7 @@ namespace BoplMapEditor.UI
                 var entry = new PlatformEntry
                 {
                     Sprite       = sr.sprite,
-                    Color        = PlatformColors[Mathf.Clamp(mat, 0, 5)],
+                    Color        = PlatformColors[Mathf.Clamp(mat, 0, 4)],
                     HalfW        = hw > 0 ? hw : 1f,
                     HalfH        = hh > 0 ? hh : 0.5f,
                     MaterialType = mat,
@@ -205,10 +205,12 @@ namespace BoplMapEditor.UI
             new Color(0.55f, 0.82f, 0.95f, 1f),  // ice
             new Color(0.08f, 0.08f, 0.18f, 1f),  // space
             new Color(0.52f, 0.55f, 0.60f, 1f),  // robot
-            new Color(0.22f, 0.75f, 0.32f, 1f),  // slime
         };
 
-        public static readonly string[] PlatformNames = { "Grass", "Snow", "Ice", "Space", "Robot", "Slime" };
+        // Slime (type 5) exists in PlatformType enum but has no sprite/material
+        // in any game level file — removed from editor
+        public static readonly string[] PlatformNames = { "Grass", "Snow", "Ice", "Space", "Robot" };
+        public static readonly int      PlatformTypeCount = 5;
         public static readonly string[] ThemeNames    = { "Grass", "Snow", "Space" };
         public static readonly Color[]  ThemeColors   = {
             new Color(0.25f, 0.62f, 0.18f, 1f),

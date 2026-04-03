@@ -46,7 +46,7 @@ namespace BoplMapEditor.UI
             // Draw platforms
             foreach (var p in map.Platforms)
             {
-                Color c = StyleHelper.PlatformColors[Mathf.Clamp(p.Type, 0, 5)];
+                Color c = StyleHelper.PlatformColors[Mathf.Clamp(p.Type, 0, 4)];
                 c.a = 1f;
                 DrawPlatform(pixels, p, c);
             }
