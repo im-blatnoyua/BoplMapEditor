@@ -18,8 +18,8 @@ namespace BoplMapEditor.UI
         // water % from bottom = (−11.3 − (−26)) / 66 ≈ 0.223
         const float WATER_FRAC = 0.223f;
         const float TOP_H      = 72f;
-        const float PALETTE_H  = 130f;
-        const float ITEM_W     = 110f;
+        const float PALETTE_H  = 160f;
+        const float ITEM_W     = 130f;
 
         static readonly Color SkyBottom  = new Color(0.42f, 0.68f, 0.95f, 1f);
         static readonly Color SkyTop     = new Color(0.22f, 0.45f, 0.78f, 1f);
@@ -340,43 +340,78 @@ namespace BoplMapEditor.UI
             _items.Clear();
             _selectedSlot = 0;
 
-            var scanned = StyleHelper.ScannedPlatforms;
-
-            if (scanned.Count > 0)
+            // One item per platform material type — use real game sprite if available
+            for (int mat = 0; mat < 6; mat++)
             {
-                // Show real platforms from the loaded scene
-                for (int i = 0; i < scanned.Count; i++)
+                int captureMat = mat;
+                var sprite     = StyleHelper.GetPlatformSprite(mat);
+                var color      = StyleHelper.PlatformColors[mat];
+                var name       = StyleHelper.PlatformNames[mat];
+                var item       = BuildSpriteItem(_paletteContent, sprite, color, name, mat == 0);
+                item.ThumbBg.GetComponent<Button>().onClick.AddListener(() =>
                 {
-                    int captureSlot = i;
-                    var entry = scanned[i];
-                    var item  = BuildScannedItem(_paletteContent, entry, i == 0);
-                    item.ThumbBg.GetComponent<Button>().onClick.AddListener(() =>
-                    {
-                        _selectedSlot           = captureSlot;
-                        _ctrl.PlacePlatformType  = entry.MaterialType;
-                        ApplySlotHighlight();
-                    });
-                    _items.Add(item);
-                }
-            }
-            else
-            {
-                // Fallback: preset × material grid
-                string[] names = { "WIDE", "MED", "SMALL", "ROUND", "NORM", "LONG" };
-                int slot = 0;
-                for (int mat = 0; mat < 6; mat++)
-                    for (int pi = 0; pi < MapEditorController.IslandPresets.Length; pi++, slot++)
-                    {
-                        int cs = slot, cm = mat, cp = pi;
-                        var item = BuildPaletteItem(_paletteContent,
-                            MapEditorController.IslandPresets[pi], names[pi], mat, slot == 0);
-                        item.ThumbBg.GetComponent<Button>().onClick.AddListener(
-                            () => SelectSlot(cs, cp, cm));
-                        _items.Add(item);
-                    }
+                    _selectedSlot           = captureMat;
+                    _ctrl.PlacePlatformType  = captureMat;
+                    ApplySlotHighlight();
+                });
+                _items.Add(item);
             }
 
             ApplySlotHighlight();
+        }
+
+        PaletteItem BuildSpriteItem(RectTransform parent, Sprite? sprite, Color color,
+                                    string label, bool selected)
+        {
+            var go = new GameObject("PaletteItem_" + label);
+            go.transform.SetParent(parent, false);
+
+            var bgImg = go.AddComponent<Image>();
+            bgImg.sprite = StyleHelper.MakeRoundedSprite();
+            bgImg.type   = Image.Type.Sliced;
+            bgImg.color  = selected ? ItemSel : ItemNorm;
+
+            go.AddComponent<LayoutElement>().minWidth  = ITEM_W;
+            go.GetComponent<LayoutElement>().flexibleHeight = 1;
+            go.AddComponent<Button>();
+
+            // Sprite preview — fills most of the card
+            var shapeGo = new GameObject("Sprite");
+            shapeGo.transform.SetParent(go.transform, false);
+            var shapeImg = shapeGo.AddComponent<Image>();
+            shapeImg.raycastTarget = false;
+            if (sprite != null)
+            {
+                shapeImg.sprite = sprite;
+                shapeImg.type   = Image.Type.Sliced;
+                shapeImg.color  = Color.white;
+            }
+            else
+            {
+                shapeImg.sprite = StyleHelper.MakeRoundedSprite();
+                shapeImg.type   = Image.Type.Sliced;
+                shapeImg.color  = color;
+            }
+            var srt = shapeGo.GetComponent<RectTransform>();
+            srt.anchorMin = new Vector2(0.1f, 0.25f);
+            srt.anchorMax = new Vector2(0.9f, 0.85f);
+            srt.offsetMin = srt.offsetMax = Vector2.zero;
+
+            // Label at bottom
+            var lblGo = new GameObject("Label");
+            lblGo.transform.SetParent(go.transform, false);
+            var lbl = lblGo.AddComponent<TextMeshProUGUI>();
+            ApplyFont(lbl, 13f, true);
+            lbl.text      = label.ToUpper();
+            lbl.alignment = TextAlignmentOptions.Center;
+            lbl.color     = selected ? new Color(0.1f, 0.1f, 0.2f) : White;
+            lbl.raycastTarget = false;
+            var lrt = lblGo.GetComponent<RectTransform>();
+            lrt.anchorMin = new Vector2(0f, 0f);
+            lrt.anchorMax = new Vector2(1f, 0.25f);
+            lrt.offsetMin = lrt.offsetMax = Vector2.zero;
+
+            return new PaletteItem { MaterialType = 0, ThumbBg = bgImg, ThumbShape = shapeImg };
         }
 
         PaletteItem BuildScannedItem(RectTransform parent, StyleHelper.PlatformEntry entry, bool selected)
