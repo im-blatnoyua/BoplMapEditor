@@ -62,10 +62,8 @@ namespace BoplMapEditor.Data
         public static List<MapData> GetDefaults() => new List<MapData>
         {
             Classic(),
-            BridgeMap(),
-            SpaceArena(),
             SnowLadder(),
-            Chaos(),
+            SpaceArena(),
         };
 
         // ── Presets ───────────────────────────────────────────────────────
