@@ -36,7 +36,7 @@ namespace BoplMapEditor.UI
         MapEditorController _ctrl    = null!;
         MapBrowserScreen    _browser = null!;
         Color _blue, _darkBlue, _orange;
-        Camera? _lobbyCamera;
+        RawImage? _viewportImage;
 
         // Top bar
         TextMeshProUGUI _mapNameLabel = null!;
@@ -97,11 +97,7 @@ namespace BoplMapEditor.UI
             if (_mapNameLabel != null)
                 _mapNameLabel.text = map.Name.ToUpper();
 
-            // Disable lobby camera so it doesn't render over the battle scene
-            _lobbyCamera = Camera.main;
-            if (_lobbyCamera != null) _lobbyCamera.enabled = false;
-
-            // Load real game battle scene
+            // Load real game battle scene — camera renders into RenderTexture
             BoplMapEditor.Util.BackgroundSceneLoader.Load(map.LevelTheme);
 
             StyleHelper.ScanPlatformAssets();
@@ -113,8 +109,7 @@ namespace BoplMapEditor.UI
         {
             _ctrl.Close();
             BoplMapEditor.Util.BackgroundSceneLoader.Unload();
-            // Re-enable lobby camera
-            if (_lobbyCamera != null) _lobbyCamera.enabled = true;
+            if (_viewportImage != null) _viewportImage.texture = null;
             gameObject.SetActive(false);
             _browser.gameObject.SetActive(true);
             _browser.Refresh();
@@ -213,11 +208,22 @@ namespace BoplMapEditor.UI
             rt.offsetMin = new Vector2(0f, PALETTE_H);
             rt.offsetMax = new Vector2(0f, -TOP_H);
 
-            // Transparent — game scene cameras (depth=-5) render through this area.
-            // ScreenSpaceOverlay canvas renders on top, viewport hole shows game scene.
-            var vpImg = go.AddComponent<Image>();
-            vpImg.color        = Color.clear;
-            vpImg.raycastTarget = false;
+            // RawImage displays the RenderTexture from BackgroundSceneLoader.
+            // Works in any canvas render mode — no camera depth fighting.
+            _viewportImage = go.AddComponent<RawImage>();
+            _viewportImage.color = Color.white;
+            // Texture assigned in Update() once scene finishes loading
+        }
+
+        void Update()
+        {
+            // Assign RenderTexture as soon as BackgroundSceneLoader has it ready
+            if (_viewportImage != null && _viewportImage.texture == null
+                && BoplMapEditor.Util.BackgroundSceneLoader.ActiveTexture != null)
+            {
+                _viewportImage.texture = BoplMapEditor.Util.BackgroundSceneLoader.ActiveTexture;
+                Plugin.Log.LogInfo("[NativeEditor] RenderTexture assigned to viewport.");
+            }
         }
 
         // ── Palette (horizontal scroll) ───────────────────────────────────
