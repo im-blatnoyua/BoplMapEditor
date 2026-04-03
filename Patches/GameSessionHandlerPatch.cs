@@ -16,10 +16,12 @@ namespace BoplMapEditor.Patches
             if (!CustomMapState.PendingLoad) return;
             CustomMapState.PendingLoad = false;
 
-            // Prefer a pending map pushed by the host; fall back to the editor's current map
+            // Prefer a pending map pushed by the host; fall back to test map or editor map
             Data.MapData? map = null;
             if (LobbySync.HasCustomMap())
                 map = LobbySync.PullMap();
+            else if (Core.TestModeManager.IsTestMode)
+                map = Core.TestModeManager.TestMap;
             else if (Plugin.Editor.IsOpen)
                 map = Plugin.Editor.CurrentMap;
 

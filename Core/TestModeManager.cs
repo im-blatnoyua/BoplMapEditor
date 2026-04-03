@@ -1,5 +1,5 @@
-using BoplMapEditor.Data;
 using BoplFixedMath;
+using BoplMapEditor.Data;
 using HarmonyLib;
 using System.Reflection;
 using UnityEngine;
@@ -62,7 +62,13 @@ namespace BoplMapEditor.Core
             // Allow GameSessionHandler to run — clear editor scene flag
             EditorSceneManager.IsEditorScene = false;
 
-            // Set up 1 keyboard player in PlayerHandler
+            Plugin.Log.LogInfo($"[TestMode] Starting solo test at ({SpawnX:F1},{SpawnY:F1})");
+
+            // Start the game session FIRST — Init() may reset the player list
+            GameSession.Init();
+            GameLobby.isOnlineGame = false;
+
+            // Set up 1 keyboard player AFTER Init so the list isn't wiped
             if (!SetupSoloPlayer())
             {
                 Plugin.Log.LogWarning("[TestMode] Could not setup player. Aborting.");
@@ -70,16 +76,12 @@ namespace BoplMapEditor.Core
                 return;
             }
 
-            Plugin.Log.LogInfo($"[TestMode] Starting solo test at ({SpawnX:F1},{SpawnY:F1})");
-
-            // Start the game session
-            GameSession.Init();
-            GameLobby.isOnlineGame = false;
+            // Signal GameSessionHandlerPatch to replace platforms with our map
+            Patches.CustomMapState.PendingLoad = true;
 
             // Load the level matching the map theme
             string[] scenesByTheme = { "Level1", "Level22", "Level35" };
             string scene = scenesByTheme[Mathf.Clamp(map.LevelTheme, 0, 2)];
-            SceneManager.sceneLoaded += OnTestLevelLoaded;
             try { SceneManager.LoadScene(scene); }
             catch
             {
@@ -147,48 +149,6 @@ namespace BoplMapEditor.Core
             }
         }
 
-        static void OnTestLevelLoaded(Scene scene, LoadSceneMode mode)
-        {
-            SceneManager.sceneLoaded -= OnTestLevelLoaded;
-            Plugin.Log.LogInfo($"[TestMode] Level '{scene.name}' loaded — applying custom platforms.");
-
-            if (TestMap == null) return;
-
-            // Get all platforms in the loaded scene
-            var platforms = new System.Collections.Generic.List<StickyRoundedRectangle>();
-            foreach (var root in scene.GetRootGameObjects())
-                platforms.AddRange(root.GetComponentsInChildren<StickyRoundedRectangle>(true));
-
-            Plugin.Log.LogInfo($"[TestMode] Found {platforms.Count} level platforms, map has {TestMap.Platforms.Count}");
-
-            // Reposition/resize Level1 platforms to match our map
-            for (int i = 0; i < platforms.Count; i++)
-            {
-                if (i < TestMap.Platforms.Count)
-                {
-                    var pd  = TestMap.Platforms[i];
-                    var srr = platforms[i];
-
-                    // Reposition
-                    var ft = srr.GetComponent<FixTransform>();
-                    if (ft != null)
-                        ft.position = new Vec2((Fix)pd.X, (Fix)pd.Y);
-
-                    // Resize
-                    var rp = srr.GetComponent<ResizablePlatform>();
-                    if (rp != null)
-                        rp.ResizePlatform((Fix)pd.HalfH, (Fix)pd.HalfW, (Fix)pd.Radius);
-
-                    srr.gameObject.SetActive(true);
-                }
-                else
-                {
-                    // Hide extra Level1 platforms we don't need
-                    platforms[i].gameObject.SetActive(false);
-                }
-            }
-        }
-
         public static void End()
         {
             IsTestMode = false;
@@ -228,7 +188,10 @@ namespace BoplMapEditor.Core
         static void Postfix()
         {
             if (TestModeManager.IsTestMode)
+            {
                 TestModeManager.End();
+                EditorSceneManager.ReopenBrowser = true;
+            }
         }
     }
 }

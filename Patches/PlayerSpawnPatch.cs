@@ -10,7 +10,7 @@ namespace BoplMapEditor.Patches
     {
         static void Postfix()
         {
-            if (!CustomMapState.PendingLoad && !WasCustomMapLoaded) return;
+            if (!CustomMapState.PendingLoad && !WasCustomMapLoaded && !Core.TestModeManager.IsTestMode) return;
 
             EnvironmentApplier.ApplyGravityToSpawnedPlayers();
             EnvironmentApplier.ApplyFrictionToSpawnedPlayers();
