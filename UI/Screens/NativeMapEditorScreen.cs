@@ -195,7 +195,8 @@ namespace BoplMapEditor.UI
             rt.offsetMin = new Vector2(0f, PALETTE_H);
             rt.offsetMax = new Vector2(0f, -TOP_H);
 
-            go.AddComponent<Image>().color = Color.clear;
+            // alpha must be > 0 for Mask stencil to work — showMaskGraphic hides it visually
+            go.AddComponent<Image>().color = Color.white;
             go.AddComponent<Mask>().showMaskGraphic = false;
 
             // Sky base layer (SkyBottom color fills sky area)

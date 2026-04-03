@@ -12,14 +12,14 @@ namespace BoplMapEditor.UI
     public class MapBrowserScreen : MonoBehaviour
     {
         // ── Color palette ─────────────────────────────────────────────────
-        static readonly Color BgDeep        = new Color(0.05f, 0.07f, 0.15f, 1f);
-        static readonly Color SidebarBg     = new Color(0.08f, 0.10f, 0.20f, 1f);
-        static readonly Color CardBg        = new Color(0.10f, 0.13f, 0.22f, 1f);
-        static readonly Color CardHover     = new Color(0.13f, 0.17f, 0.28f, 1f);
+        static readonly Color BgDeep        = new Color(0.38f, 0.62f, 0.90f, 1f); // sky blue
+        static readonly Color SidebarBg     = new Color(0.22f, 0.45f, 0.75f, 1f); // darker blue sidebar
+        static readonly Color CardBg        = new Color(0.28f, 0.52f, 0.82f, 1f); // medium blue card
+        static readonly Color CardHover     = new Color(0.35f, 0.60f, 0.90f, 1f);
         static readonly Color StripeColor   = new Color(1f,   1f,   1f,   0.025f);
         static readonly Color AccentLine    = new Color(0.93f, 0.64f, 0.12f, 1f); // matches _orange
         static readonly Color TextPrimary   = new Color(0.95f, 0.95f, 0.95f, 1f);
-        static readonly Color TextMuted     = new Color(0.50f, 0.60f, 0.70f, 1f);
+        static readonly Color TextMuted     = new Color(0.85f, 0.92f, 1.00f, 1f);
         static readonly Color DangerRed     = new Color(0.80f, 0.18f, 0.18f, 1f);
         static readonly Color White         = Color.white;
 
