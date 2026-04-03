@@ -59,7 +59,9 @@ namespace BoplMapEditor.Core
         {
             IsEditorScene = false;
             PendingMap    = null;
-            ReopenBrowser = true; // signal LobbyButtonPatch to reopen browser
+            ReopenBrowser = true;
+            // Clear old references — CharacterSelect reload will create fresh screens
+            Plugin.SetBrowserScreen(null!);
             SceneManager.LoadScene(ReturnScene);
             Plugin.Log.LogInfo($"[EditorSceneMgr] → {ReturnScene} (reopen browser)");
         }

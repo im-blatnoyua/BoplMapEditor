@@ -98,8 +98,11 @@ namespace BoplMapEditor.Patches
             if (BoplMapEditor.Core.EditorSceneManager.ReopenBrowser)
             {
                 BoplMapEditor.Core.EditorSceneManager.ReopenBrowser = false;
+                // Must use the newly created screen — old one was destroyed with Level1
                 Plugin.BrowserScreen?.Open();
             }
+
+            Plugin.Log.LogInfo("[LobbyButtonPatch] Inject complete.");
         }
 
         static void CreateButton(GameObject? joinSource, Canvas canvas,
@@ -117,7 +120,7 @@ namespace BoplMapEditor.Patches
             rt.anchorMin        = new Vector2(1f, 0f);
             rt.anchorMax        = new Vector2(1f, 0f);
             rt.pivot            = new Vector2(1f, 0f);
-            rt.sizeDelta        = new Vector2(380f, 110f);
+            rt.sizeDelta        = new Vector2(500f, 140f);
             rt.anchoredPosition = new Vector2(-24f, 24f);
 
             // ── Wire click ────────────────────────────────────────────────
@@ -152,7 +155,7 @@ namespace BoplMapEditor.Patches
             lblGo.transform.SetParent(go.transform, false);
             var tmp = lblGo.AddComponent<TextMeshProUGUI>();
             tmp.text      = "MAP EDITOR";
-            tmp.fontSize  = 36f;
+            tmp.fontSize  = 52f;
             tmp.fontStyle = FontStyles.Bold | FontStyles.UpperCase;
             tmp.alignment = TextAlignmentOptions.Center;
             tmp.color     = Color.white;

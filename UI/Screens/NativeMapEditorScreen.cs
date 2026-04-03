@@ -17,7 +17,7 @@ namespace BoplMapEditor.UI
         // SceneBounds: YMin=-26, YMax=40, waterHeight=-11.3
         // water % from bottom = (−11.3 − (−26)) / 66 ≈ 0.223
         const float WATER_FRAC = 0.223f;
-        const float TOP_H      = 72f;
+        const float TOP_H      = 120f;
         const float PALETTE_H  = 160f;
         const float ITEM_W     = 130f;
 
@@ -176,7 +176,7 @@ namespace BoplMapEditor.UI
             var nameGo = new GameObject("Name");
             nameGo.transform.SetParent(go.transform, false);
             _mapNameLabel = nameGo.AddComponent<TextMeshProUGUI>();
-            ApplyFont(_mapNameLabel, 22f, true);
+            ApplyFont(_mapNameLabel, 36f, true);
             _mapNameLabel.text      = "UNTITLED";
             _mapNameLabel.alignment = TextAlignmentOptions.Left;
             var nameLe = nameGo.AddComponent<LayoutElement>();
@@ -684,7 +684,7 @@ namespace BoplMapEditor.UI
             var lblGo = new GameObject("L");
             lblGo.transform.SetParent(go.transform, false);
             var tmp = lblGo.AddComponent<TextMeshProUGUI>();
-            ApplyFont(tmp, 16f, true);
+            ApplyFont(tmp, 28f, true);
             tmp.text          = text;
             tmp.fontStyle     = FontStyles.Bold | FontStyles.UpperCase;
             tmp.alignment     = TextAlignmentOptions.Center;
