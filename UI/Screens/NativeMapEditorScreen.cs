@@ -151,9 +151,11 @@ namespace BoplMapEditor.UI
 
         public void Close()
         {
+            // Auto-save before leaving so changes are never lost
+            AutoSave();
             _ctrl.Close();
             if (_inDedicatedScene)
-                EditorSceneManager.Close(); // loads CharacterSelect
+                EditorSceneManager.Close();
             else
             {
                 gameObject.SetActive(false);
@@ -162,6 +164,20 @@ namespace BoplMapEditor.UI
                     _browser.gameObject.SetActive(true);
                     _browser.Refresh();
                 }
+            }
+        }
+
+        void AutoSave()
+        {
+            if (_ctrl.CurrentMap == null) return;
+            try
+            {
+                MapSerializer.SaveMap(_ctrl.CurrentMap, _ctrl.CurrentMap.Name);
+                Plugin.Log.LogInfo($"[Editor] AutoSaved '{_ctrl.CurrentMap.Name}'");
+            }
+            catch (System.Exception ex)
+            {
+                Plugin.Log.LogError($"[Editor] AutoSave failed: {ex.Message}");
             }
         }
 
