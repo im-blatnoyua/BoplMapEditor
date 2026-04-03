@@ -14,7 +14,6 @@ namespace BoplMapEditor.Core
         public static bool     ReopenBrowser    { get; set; } = false;
 
         static Canvas? _hiddenLobbyCanvas;
-        static string? _loadedScene;
 
         private static readonly string[][] _scenes =
         {
@@ -43,55 +42,28 @@ namespace BoplMapEditor.Core
             {
                 try
                 {
-                    // Additive — keeps CharacterSelect alive so online lobby persists
-                    SceneManager.LoadScene(name, LoadSceneMode.Additive);
-                    _loadedScene = name;
-                    Plugin.Log.LogInfo($"[EditorSceneMgr] Loading '{name}' additive");
+                    // Load as SINGLE — full scene init so all visuals work
+                    SceneManager.LoadScene(name, LoadSceneMode.Single);
+                    Plugin.Log.LogInfo($"[EditorSceneMgr] Loading '{name}'");
                     return;
                 }
                 catch { }
             }
 
             int idx = map.LevelTheme == 2 ? 60 : map.LevelTheme == 1 ? 30 : 6;
-            SceneManager.LoadScene(idx, LoadSceneMode.Additive);
-            _loadedScene = $"idx_{idx}";
-            Plugin.Log.LogInfo($"[EditorSceneMgr] Loading scene index {idx} additive");
+            SceneManager.LoadScene(idx, LoadSceneMode.Single);
+            Plugin.Log.LogInfo($"[EditorSceneMgr] Loading scene index {idx}");
         }
 
         public static void Close()
         {
             IsEditorScene = false;
             PendingMap    = null;
-
-            // Unload the level scene
-            if (_loadedScene != null)
-            {
-                try { SceneManager.UnloadSceneAsync(_loadedScene); } catch { }
-                _loadedScene = null;
-            }
-
-            // Restore lobby canvas
-            if (_hiddenLobbyCanvas != null)
-            {
-                _hiddenLobbyCanvas.enabled = true;
-                _hiddenLobbyCanvas = null;
-            }
-
-            // Rebuild lobby button + screens (lobby was kept alive — just reopen browser)
             ReopenBrowser = true;
+            // Clear old references — CharacterSelect reload will create fresh screens
             Plugin.SetBrowserScreen(null!);
-            // Trigger LobbyButtonPatch to rebuild screens by simulating Start
-            var handler = Object.FindObjectOfType<CharacterSelectHandler>(true);
-            if (handler != null)
-            {
-                var start = typeof(CharacterSelectHandler).GetMethod("Start",
-                    System.Reflection.BindingFlags.Instance |
-                    System.Reflection.BindingFlags.NonPublic |
-                    System.Reflection.BindingFlags.Public);
-                start?.Invoke(handler, null);
-            }
-
-            Plugin.Log.LogInfo("[EditorSceneMgr] Closed — lobby restored.");
+            SceneManager.LoadScene(ReturnScene);
+            Plugin.Log.LogInfo($"[EditorSceneMgr] → {ReturnScene} (reopen browser)");
         }
 
         static void OnLevelLoaded(Scene scene, LoadSceneMode mode)

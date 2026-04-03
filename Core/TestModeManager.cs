@@ -72,9 +72,19 @@ namespace BoplMapEditor.Core
 
             Plugin.Log.LogInfo($"[TestMode] Starting solo test at ({SpawnX:F1},{SpawnY:F1})");
 
-            // Level1 is ALREADY loaded additively — reuse it
-            // Re-enable platforms, apply our map, call GameSessionHandler directly
-            StartInCurrentScene();
+            // Start the game session
+            GameSession.Init();
+            GameLobby.isOnlineGame = false;
+
+            // Load the level matching the map theme
+            string[] scenesByTheme = { "Level1", "Level22", "Level35" };
+            string scene = scenesByTheme[Mathf.Clamp(map.LevelTheme, 0, 2)];
+            SceneManager.sceneLoaded += OnTestLevelLoaded;
+            try { SceneManager.LoadScene(scene); }
+            catch
+            {
+                SceneManager.LoadScene(6); // fallback by index
+            }
         }
 
         static bool SetupSoloPlayer()
@@ -137,70 +147,7 @@ namespace BoplMapEditor.Core
             }
         }
 
-        static void StartInCurrentScene()
-        {
-            // Find GameSessionHandler in the loaded level scene
-            var handler = Object.FindObjectOfType<GameSessionHandler>(true);
-            if (handler == null)
-            {
-                Plugin.Log.LogError("[TestMode] GameSessionHandler not found in scene.");
-                IsTestMode = false;
-                return;
-            }
-
-            // Re-enable platforms and apply our map layout
-            var allPlatforms = new System.Collections.Generic.List<StickyRoundedRectangle>(
-                Object.FindObjectsOfType<StickyRoundedRectangle>(true));
-            ApplyMapPlatforms(allPlatforms);
-
-            // Re-enable ability spawners
-            foreach (var spawner in Object.FindObjectsOfType<AbilitySpawner>(true))
-                spawner.gameObject.SetActive(true);
-
-            GameLobby.isOnlineGame = false;
-            GameSession.Init();
-
-            // Call GameSessionHandler.Awake via reflection (registers with Updater + finds grounds)
-            try
-            {
-                var awakeM = typeof(GameSessionHandler).GetMethod("Awake",
-                    System.Reflection.BindingFlags.Instance |
-                    System.Reflection.BindingFlags.NonPublic);
-                awakeM?.Invoke(handler, null);
-                Plugin.Log.LogInfo("[TestMode] GameSessionHandler.Awake invoked");
-            }
-            catch (System.Exception ex)
-            {
-                Plugin.Log.LogError($"[TestMode] Awake invoke failed: {ex.Message}");
-            }
-
-            // Override spawn + call Init
-            handler.teamSpawns[0] = new Vec2((Fix)SpawnX, (Fix)SpawnY);
-            handler.Init();
-            Plugin.Log.LogInfo("[TestMode] Game started in current scene.");
-        }
-
-        static void ApplyMapPlatforms(System.Collections.Generic.List<StickyRoundedRectangle> platforms)
-        {
-            if (TestMap == null) return;
-            for (int i = 0; i < platforms.Count; i++)
-            {
-                if (i < TestMap.Platforms.Count)
-                {
-                    var pd = TestMap.Platforms[i];
-                    platforms[i].gameObject.SetActive(true);
-                    var ft = platforms[i].GetComponent<FixTransform>();
-                    if (ft != null) ft.position = new Vec2((Fix)pd.X, (Fix)pd.Y);
-                    var rp = platforms[i].GetComponent<ResizablePlatform>();
-                    if (rp != null) rp.ResizePlatform((Fix)pd.HalfH, (Fix)pd.HalfW, (Fix)pd.Radius);
-                }
-                else
-                    platforms[i].gameObject.SetActive(false);
-            }
-            Plugin.Log.LogInfo($"[TestMode] Applied {TestMap.Platforms.Count} platforms.");
-        }
-
-        static void OnTestLevelLoaded(Scene scene, LoadSceneMode mode) // kept for reference
+        static void OnTestLevelLoaded(Scene scene, LoadSceneMode mode)
         {
             SceneManager.sceneLoaded -= OnTestLevelLoaded;
             Plugin.Log.LogInfo($"[TestMode] Level '{scene.name}' loaded — applying custom platforms.");
