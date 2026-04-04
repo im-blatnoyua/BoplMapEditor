@@ -192,6 +192,18 @@ namespace BoplMapEditor.Core
             foreach (var p in map.Platforms)
                 Util.PlatformSpawner.SpawnPlatform(p);
             Util.EnvironmentApplier.Apply(map.Environment);
+
+            // Disable TutorialGameHandler so it can't reset platforms or run its challenge logic
+            var tgh = Object.FindObjectOfType<TutorialGameHandler>();
+            if (tgh != null)
+            {
+                tgh.enabled = false;
+                Plugin.Log.LogInfo("[TestMode] TutorialGameHandler disabled");
+            }
+            else
+            {
+                Plugin.Log.LogWarning("[TestMode] TutorialGameHandler not found in scene");
+            }
         }
     }
 
