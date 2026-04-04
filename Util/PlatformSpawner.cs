@@ -39,16 +39,20 @@ namespace BoplMapEditor.Util
             // Set platform type (grass/snow/ice/space/robot/slime)
             srr.platformType = (PlatformType)data.Type;
 
-            // Set extents and radius via reflection (fields may be non-public)
-            SetField(srr, "extents", FixConvert.ToVec2(new Vector2(data.HalfW, data.HalfH)));
+            // Set extents on SRR and startExtents/startRadius inside rr (DPhysicsRoundedRect)
+            var extentsVal = FixConvert.ToVec2(new Vector2(data.HalfW, data.HalfH));
+            SetField(srr, "extents", extentsVal);
 
-            // Try known radius field names; log all SRR fields once to find the right one
-            if (!TrySetRadius(srr, data.Radius))
+            var rrObj = srr.GetType().GetField("rr",
+                BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic)
+                ?.GetValue(srr);
+            if (rrObj != null)
             {
-                Plugin.Log.LogWarning("[PlatformSpawner] radius field not found. Known SRR fields:");
-                foreach (var f in srr.GetType().GetFields(BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Public))
-                    Plugin.Log.LogInfo($"  SRR field: {f.FieldType.Name} {f.Name}");
+                SetField(rrObj, "startExtents", extentsVal);
+                SetField(rrObj, "startRadius", FixConvert.ToFix(data.Radius));
             }
+
+            TrySetRadius(srr, data.Radius); // also try direct fallback
 
             // Set position and rotation via FixTransform
             var fixTrans = go.GetComponent<FixTransform>();
@@ -175,7 +179,7 @@ namespace BoplMapEditor.Util
         {
             var fixVal = FixConvert.ToFix(radius);
 
-            // Radius lives inside DPhysicsRoundedRect rr, not directly on SRR
+            // Radius and extents live inside DPhysicsRoundedRect rr as startRadius/startExtents
             var rrField = srr.GetType().GetField("rr",
                 BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
             if (rrField != null)
@@ -183,27 +187,10 @@ namespace BoplMapEditor.Util
                 var rr = rrField.GetValue(srr);
                 if (rr != null)
                 {
-                    string[] rrCandidates = { "radius", "r", "cornerRadius", "Radius" };
-                    foreach (var name in rrCandidates)
-                    {
-                        var f = rr.GetType().GetField(name,
-                            BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
-                        if (f != null) { f.SetValue(rr, fixVal); return true; }
-                    }
-                    // Log rr fields once so we can identify the right name
-                    Plugin.Log.LogWarning("[PlatformSpawner] radius not found in rr. rr fields:");
-                    foreach (var f in rr.GetType().GetFields(BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic))
-                        Plugin.Log.LogInfo($"  rr field: {f.FieldType.Name} {f.Name}");
+                    var f = rr.GetType().GetField("startRadius",
+                        BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+                    if (f != null) { f.SetValue(rr, fixVal); return true; }
                 }
-            }
-
-            // Fallback: try directly on SRR
-            string[] candidates = { "radius", "cornerRadius", "roundness", "Radius" };
-            foreach (var name in candidates)
-            {
-                var f = srr.GetType().GetField(name,
-                    BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
-                if (f != null) { f.SetValue(srr, fixVal); return true; }
             }
             return false;
         }

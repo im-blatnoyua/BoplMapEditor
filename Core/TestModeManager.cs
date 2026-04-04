@@ -185,19 +185,6 @@ namespace BoplMapEditor.Core
         }
     }
 
-    // Log player count when SpawnPlayers runs (debug)
-    [HarmonyPatch(typeof(GameSessionHandler), "SpawnPlayers")]
-    public static class GameSessionHandler_SpawnDebugPatch
-    {
-        static void Prefix()
-        {
-            if (!TestModeManager.IsTestMode) return;
-            var ph = PlayerHandler.Get();
-            var list = ph.PlayerList();
-            Plugin.Log.LogInfo($"[TestMode] SpawnPlayers called — PlayerList count={list.Count}");
-        }
-    }
-
     // When CharacterSelect reloads after test — mark test as ended
     [HarmonyPatch(typeof(CharacterSelectHandler), "Awake")]
     public static class CharacterSelect_TestEndPatch
