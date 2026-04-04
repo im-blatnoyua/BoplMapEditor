@@ -10,6 +10,42 @@ namespace BoplMapEditor.Util
     public static class PlatformSpawner
     {
         private static StickyRoundedRectangle? _template;
+        private static GameObject?             _templateHolder; // DontDestroyOnLoad container
+
+        // Call from StartTest() while the level scene is still loaded.
+        // Clones one platform into DontDestroyOnLoad so it survives the Tutorial scene swap.
+        public static void PreserveTemplate()
+        {
+            // Already have a live template
+            if (_template != null && _template) return;
+
+            var all = Object.FindObjectsOfType<StickyRoundedRectangle>(true);
+            var source = all.FirstOrDefault();
+            if (source == null)
+            {
+                Plugin.Log.LogWarning("[PlatformSpawner] PreserveTemplate: nothing found in current scene");
+                return;
+            }
+
+            _templateHolder = Object.Instantiate(source.gameObject);
+            _templateHolder.name = "__PlatformTemplate__";
+            _templateHolder.SetActive(false);
+            Object.DontDestroyOnLoad(_templateHolder);
+            _template = _templateHolder.GetComponent<StickyRoundedRectangle>();
+            Plugin.Log.LogInfo($"[PlatformSpawner] Template preserved from '{source.name}'");
+        }
+
+        // Call when test mode ends to clean up the preserved template.
+        public static void ReleaseTemplate()
+        {
+            if (_templateHolder != null)
+            {
+                Object.Destroy(_templateHolder);
+                _templateHolder = null;
+                _template = null;
+                Plugin.Log.LogInfo("[PlatformSpawner] Template released");
+            }
+        }
 
         // Call immediately when a scene loads to cache template before anything destroys platforms.
         public static void EnsureTemplate()
@@ -23,10 +59,10 @@ namespace BoplMapEditor.Util
                 Plugin.Log.LogWarning("[PlatformSpawner] EnsureTemplate: no StickyRoundedRectangle in scene");
         }
 
-        // Find a disabled platform as a cloning template
+        // Find a platform to use as clone template
         private static StickyRoundedRectangle? GetTemplate()
         {
-            if (_template != null) return _template;
+            if (_template != null && _template) return _template;
             var all = Object.FindObjectsOfType<StickyRoundedRectangle>(true);
             _template = all.FirstOrDefault();
             return _template;

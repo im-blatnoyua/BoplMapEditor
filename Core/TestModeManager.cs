@@ -64,6 +64,9 @@ namespace BoplMapEditor.Core
 
             Plugin.Log.LogInfo($"[TestMode] Starting solo test at ({SpawnX:F1},{SpawnY:F1})");
 
+            // Preserve a platform template NOW — level scene still loaded, Tutorial has none
+            Util.PlatformSpawner.PreserveTemplate();
+
             // Persistent session handler — survives scene load, handles Escape to exit
             var sessionGo = new GameObject("TestModeSession");
             Object.DontDestroyOnLoad(sessionGo);
@@ -152,6 +155,7 @@ namespace BoplMapEditor.Core
         public static void End()
         {
             IsTestMode = false;
+            Util.PlatformSpawner.ReleaseTemplate();
             Plugin.Log.LogInfo("[TestMode] Ended.");
         }
     }
@@ -241,10 +245,12 @@ namespace BoplMapEditor.Core
                 { Object.Destroy(pickup.gameObject); removed++; }
             foreach (var dummy in Object.FindObjectsOfType<TutorialTargetDummy>(true))
                 { Object.Destroy(dummy.gameObject); removed++; }
-            // Catch any remaining Tutorial-named objects (floating text, letters, etc.)
+            // Catch any remaining Tutorial-named root objects (floating text, letters, etc.)
+            // Skip objects that carry TutorialGameHandler — needed for player respawn
             foreach (var root in UnityEngine.SceneManagement.SceneManager.GetActiveScene().GetRootGameObjects())
             {
-                if (root.name.StartsWith("Tutorial", System.StringComparison.OrdinalIgnoreCase))
+                if (root.name.StartsWith("Tutorial", System.StringComparison.OrdinalIgnoreCase)
+                    && root.GetComponent<TutorialGameHandler>() == null)
                     { Object.Destroy(root); removed++; }
             }
             Plugin.Log.LogInfo($"[TestMode] Removed {removed} tutorial UI objects");
