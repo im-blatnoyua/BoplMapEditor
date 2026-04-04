@@ -62,25 +62,21 @@ namespace BoplMapEditor.Core
             // Allow GameSessionHandler to run — clear editor scene flag
             EditorSceneManager.IsEditorScene = false;
 
-            // Configure solo player BEFORE scene loads — SpawnPlayers() reads PlayerHandler.playerList
-            if (!SetupSoloPlayer())
-                Plugin.Log.LogWarning("[TestMode] SetupSoloPlayer failed — player may not spawn correctly.");
+            Plugin.Log.LogInfo($"[TestMode] Starting solo test at ({SpawnX:F1},{SpawnY:F1})");
 
-            // Tell GameSessionHandlerPatch to replace platforms when Awake fires
-            Patches.CustomMapState.PendingLoad = true;
-
-            // Load a theme-appropriate level scene — GameSessionHandlerPatch handles platform replacement
-            var sceneName = SceneForTheme(map.LevelTheme);
-            Plugin.Log.LogInfo($"[TestMode] Starting solo test at ({SpawnX:F1},{SpawnY:F1}), scene='{sceneName}'");
-            SceneManager.LoadScene(sceneName);
+            // Tutorial auto-spawns a single player without lobby setup
+            SceneManager.sceneLoaded += OnTutorialSceneLoaded;
+            SceneManager.LoadScene("Tutorial");
         }
 
-        static string SceneForTheme(int theme) => theme switch
+        static void OnTutorialSceneLoaded(Scene scene, LoadSceneMode mode)
         {
-            2 => "Level35",  // Space
-            1 => "Level22",  // Snow
-            _ => "Level1",   // Grass
-        };
+            SceneManager.sceneLoaded -= OnTutorialSceneLoaded;
+            if (TestMap == null) return;
+            Plugin.Log.LogInfo($"[TestMode] Tutorial loaded — bootstrapping map '{TestMap.Name}'");
+            var go = new GameObject("TestModeBootstrap");
+            go.AddComponent<TestModeBootstrap>();
+        }
 
         static bool SetupSoloPlayer()
         {
@@ -175,6 +171,27 @@ namespace BoplMapEditor.Core
             {
                 Plugin.Log.LogError($"[TestMode] Spawn override failed: {ex.Message}");
             }
+        }
+    }
+
+    // Waits for TutorialGameHandler to finish its own Awake/Start, then replaces platforms.
+    public class TestModeBootstrap : MonoBehaviour
+    {
+        int _frames;
+
+        void Update()
+        {
+            if (++_frames < 3) return;
+            Destroy(gameObject);
+
+            var map = TestModeManager.TestMap;
+            if (map == null) return;
+
+            Plugin.Log.LogInfo($"[TestMode] Replacing tutorial platforms ({map.Platforms.Count} platforms)");
+            Util.PlatformSpawner.DestroyAllGamePlatforms();
+            foreach (var p in map.Platforms)
+                Util.PlatformSpawner.SpawnPlatform(p);
+            Util.EnvironmentApplier.Apply(map.Environment);
         }
     }
 
