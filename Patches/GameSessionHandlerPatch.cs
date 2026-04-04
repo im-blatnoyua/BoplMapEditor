@@ -62,38 +62,6 @@ namespace BoplMapEditor.Patches
         }
     }
 
-    // Tutorial uses TutorialGameHandler instead of GameSessionHandler.
-    // Patch its Awake to replace platforms and log scene state.
-    [HarmonyPatch(typeof(TutorialGameHandler), "Awake")]
-    public static class TutorialGameHandlerPatch
-    {
-        static void Postfix(TutorialGameHandler __instance)
-        {
-            if (!Core.TestModeManager.IsTestMode) return;
-
-            var map = Core.TestModeManager.TestMap;
-            if (map == null) return;
-
-            Plugin.Log.LogInfo($"[TutorialPatch] Replacing platforms with '{map.Name}' ({map.Platforms.Count} platforms)");
-
-            PlatformSpawner.DestroyAllGamePlatforms();
-
-            map.Platforms
-                .Select(p => PlatformSpawner.SpawnPlatform(p))
-                .Where(s => s != null)
-                .ToArray();
-
-            Util.EnvironmentApplier.Apply(map.Environment);
-
-            // Log all fields to find spawn position override
-            foreach (var f in __instance.GetType().GetFields(
-                System.Reflection.BindingFlags.Instance |
-                System.Reflection.BindingFlags.NonPublic |
-                System.Reflection.BindingFlags.Public))
-                Plugin.Log.LogInfo($"  TGH field: {f.FieldType.Name} {f.Name}");
-        }
-    }
-
     public static class CustomMapState
     {
         public static bool PendingLoad;

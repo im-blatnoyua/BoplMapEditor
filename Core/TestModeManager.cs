@@ -64,10 +64,8 @@ namespace BoplMapEditor.Core
 
             Plugin.Log.LogInfo($"[TestMode] Starting solo test at ({SpawnX:F1},{SpawnY:F1})");
 
-            // Signal TutorialPatch to replace platforms with our map
-            Patches.CustomMapState.PendingLoad = true;
-
             // Load Tutorial — it handles player spawning automatically
+            SceneManager.sceneLoaded += OnTutorialSceneLoaded;
             SceneManager.LoadScene("Tutorial");
         }
 
@@ -135,6 +133,15 @@ namespace BoplMapEditor.Core
             }
         }
 
+        static void OnTutorialSceneLoaded(Scene scene, LoadSceneMode mode)
+        {
+            SceneManager.sceneLoaded -= OnTutorialSceneLoaded;
+            if (TestMap == null) return;
+            Plugin.Log.LogInfo($"[TestMode] Tutorial scene '{scene.name}' loaded — spawning bootstrap");
+            var go = new GameObject("TestModeBootstrap");
+            go.AddComponent<TestModeBootstrap>();
+        }
+
         public static void End()
         {
             IsTestMode = false;
@@ -164,6 +171,28 @@ namespace BoplMapEditor.Core
             {
                 Plugin.Log.LogError($"[TestMode] Spawn override failed: {ex.Message}");
             }
+        }
+    }
+
+    // Waits a few frames after Tutorial loads, then replaces platforms with custom map.
+    public class TestModeBootstrap : MonoBehaviour
+    {
+        int _frames;
+
+        void Update()
+        {
+            if (++_frames < 3) return;
+            Destroy(gameObject);
+
+            var map = TestModeManager.TestMap;
+            if (map == null) return;
+
+            Plugin.Log.LogInfo($"[TestMode] Replacing tutorial platforms with '{map.Name}' ({map.Platforms.Count} platforms)");
+            Util.PlatformSpawner.DestroyAllGamePlatforms();
+            foreach (var p in map.Platforms)
+                Util.PlatformSpawner.SpawnPlatform(p);
+
+            Util.EnvironmentApplier.Apply(map.Environment);
         }
     }
 
