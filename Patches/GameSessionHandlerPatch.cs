@@ -62,20 +62,35 @@ namespace BoplMapEditor.Patches
         }
     }
 
-    // In test mode there is no network handshake to trigger Init.
-    // Call it from Start() — runs after all Awake()s, so the scene is fully ready.
-    [HarmonyPatch(typeof(GameSessionHandler), "Start")]
-    public static class GameSessionHandler_TestStartPatch
+    // Tutorial uses TutorialGameHandler instead of GameSessionHandler.
+    // Patch its Awake to replace platforms and log scene state.
+    [HarmonyPatch(typeof(TutorialGameHandler), "Awake")]
+    public static class TutorialGameHandlerPatch
     {
-        static void Postfix(GameSessionHandler __instance)
+        static void Postfix(TutorialGameHandler __instance)
         {
             if (!Core.TestModeManager.IsTestMode) return;
-            Plugin.Log.LogInfo("[TestMode] Invoking GameSessionHandler.Init() from Start()");
-            var initMethod = typeof(GameSessionHandler).GetMethod("Init",
+
+            var map = Core.TestModeManager.TestMap;
+            if (map == null) return;
+
+            Plugin.Log.LogInfo($"[TutorialPatch] Replacing platforms with '{map.Name}' ({map.Platforms.Count} platforms)");
+
+            PlatformSpawner.DestroyAllGamePlatforms();
+
+            map.Platforms
+                .Select(p => PlatformSpawner.SpawnPlatform(p))
+                .Where(s => s != null)
+                .ToArray();
+
+            Util.EnvironmentApplier.Apply(map.Environment);
+
+            // Log all fields to find spawn position override
+            foreach (var f in __instance.GetType().GetFields(
                 System.Reflection.BindingFlags.Instance |
-                System.Reflection.BindingFlags.Public |
-                System.Reflection.BindingFlags.NonPublic);
-            initMethod?.Invoke(__instance, null);
+                System.Reflection.BindingFlags.NonPublic |
+                System.Reflection.BindingFlags.Public))
+                Plugin.Log.LogInfo($"  TGH field: {f.FieldType.Name} {f.Name}");
         }
     }
 

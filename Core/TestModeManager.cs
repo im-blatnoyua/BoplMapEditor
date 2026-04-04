@@ -64,29 +64,11 @@ namespace BoplMapEditor.Core
 
             Plugin.Log.LogInfo($"[TestMode] Starting solo test at ({SpawnX:F1},{SpawnY:F1})");
 
-            // Start the game session FIRST — Init() may reset the player list
-            GameSession.Init();
-            GameLobby.isOnlineGame = false;
-
-            // Set up 1 keyboard player AFTER Init so the list isn't wiped
-            if (!SetupSoloPlayer())
-            {
-                Plugin.Log.LogWarning("[TestMode] Could not setup player. Aborting.");
-                IsTestMode = false;
-                return;
-            }
-
-            // Signal GameSessionHandlerPatch to replace platforms with our map
+            // Signal TutorialPatch to replace platforms with our map
             Patches.CustomMapState.PendingLoad = true;
 
-            // Load the level matching the map theme
-            string[] scenesByTheme = { "Level1", "Level22", "Level35" };
-            string scene = scenesByTheme[Mathf.Clamp(map.LevelTheme, 0, 2)];
-            try { SceneManager.LoadScene(scene); }
-            catch
-            {
-                SceneManager.LoadScene(6); // fallback by index
-            }
+            // Load Tutorial — it handles player spawning automatically
+            SceneManager.LoadScene("Tutorial");
         }
 
         static bool SetupSoloPlayer()
