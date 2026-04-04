@@ -64,6 +64,11 @@ namespace BoplMapEditor.Core
 
             Plugin.Log.LogInfo($"[TestMode] Starting solo test at ({SpawnX:F1},{SpawnY:F1})");
 
+            // Persistent session handler — survives scene load, handles Escape to exit
+            var sessionGo = new GameObject("TestModeSession");
+            Object.DontDestroyOnLoad(sessionGo);
+            sessionGo.AddComponent<TestModeSession>();
+
             // Tutorial auto-spawns a single player without lobby setup
             SceneManager.sceneLoaded += OnTutorialSceneLoaded;
             SceneManager.LoadScene("Tutorial");
@@ -170,6 +175,28 @@ namespace BoplMapEditor.Core
             catch (System.Exception ex)
             {
                 Plugin.Log.LogError($"[TestMode] Spawn override failed: {ex.Message}");
+            }
+        }
+    }
+
+    // Persists across scene loads; exits test mode when Escape is pressed.
+    public class TestModeSession : MonoBehaviour
+    {
+        void Update()
+        {
+            if (!TestModeManager.IsTestMode)
+            {
+                Destroy(gameObject);
+                return;
+            }
+
+            if (Input.GetKeyDown(KeyCode.Escape))
+            {
+                Plugin.Log.LogInfo("[TestMode] Escape pressed — returning to editor");
+                Destroy(gameObject);
+                TestModeManager.End();
+                EditorSceneManager.ReopenBrowser = true;
+                SceneManager.LoadScene(TestModeManager.ReturnScene);
             }
         }
     }
