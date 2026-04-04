@@ -59,16 +59,23 @@ namespace BoplMapEditor.Patches
             PlayerSpawnPatch.WasCustomMapLoaded = true;
             PlayerSpawnPatch._lastEnv = map.Environment;
 
-            // In test mode there is no network handshake to trigger Init — call it manually
-            if (Core.TestModeManager.IsTestMode)
-            {
-                Plugin.Log.LogInfo("[TestMode] Invoking GameSessionHandler.Init() manually");
-                var initMethod = typeof(GameSessionHandler).GetMethod("Init",
-                    System.Reflection.BindingFlags.Instance |
-                    System.Reflection.BindingFlags.Public |
-                    System.Reflection.BindingFlags.NonPublic);
-                initMethod?.Invoke(__instance, null);
-            }
+        }
+    }
+
+    // In test mode there is no network handshake to trigger Init.
+    // Call it from Start() — runs after all Awake()s, so the scene is fully ready.
+    [HarmonyPatch(typeof(GameSessionHandler), "Start")]
+    public static class GameSessionHandler_TestStartPatch
+    {
+        static void Postfix(GameSessionHandler __instance)
+        {
+            if (!Core.TestModeManager.IsTestMode) return;
+            Plugin.Log.LogInfo("[TestMode] Invoking GameSessionHandler.Init() from Start()");
+            var initMethod = typeof(GameSessionHandler).GetMethod("Init",
+                System.Reflection.BindingFlags.Instance |
+                System.Reflection.BindingFlags.Public |
+                System.Reflection.BindingFlags.NonPublic);
+            initMethod?.Invoke(__instance, null);
         }
     }
 
