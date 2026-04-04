@@ -22,7 +22,9 @@ namespace BoplMapEditor.Data
             EnsureDirectory();
             map.Name = name;
             string json = JsonUtility.ToJson(map, prettyPrint: true);
-            File.WriteAllText(Path.Combine(MapsDirectory, name + ".json"), json, Encoding.UTF8);
+            var path = Path.Combine(MapsDirectory, name + ".json");
+            File.WriteAllText(path, json, Encoding.UTF8);
+            Plugin.Log.LogInfo($"[MapSerializer] Saved to: {path}");
         }
 
         public static MapData? LoadMap(string name)

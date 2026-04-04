@@ -103,16 +103,32 @@ namespace BoplMapEditor.Core
             }
             Plugin.Log.LogInfo($"[TestMode] Spawned {spawned.Count}/{map.Platforms.Count} platforms");
 
-            // Update TutorialGameHandler.grounds[] so Tutorial's physics sees our platforms
-            var groundsField = typeof(TutorialGameHandler).GetField("grounds",
-                BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
-            if (groundsField != null)
+            // TGH has no grounds[] — update GameSessionHandler.grounds[] instead
+            // (GSH is also present in Tutorial scene and owns the physics simulation)
+            var gsh = Object.FindObjectOfType<GameSessionHandler>();
+            if (gsh != null)
             {
-                groundsField.SetValue(__instance, spawned.ToArray());
-                Plugin.Log.LogInfo("[TestMode] TGH.grounds[] updated");
+                var groundsField = typeof(GameSessionHandler).GetField("grounds",
+                    BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+                if (groundsField != null)
+                {
+                    groundsField.SetValue(gsh, spawned.ToArray());
+                    Plugin.Log.LogInfo("[TestMode] GSH.grounds[] updated");
+                }
+                else
+                    Plugin.Log.LogWarning("[TestMode] GSH.grounds field not found");
             }
             else
-                Plugin.Log.LogWarning("[TestMode] TGH.grounds field not found — platforms may be phantom");
+                Plugin.Log.LogWarning("[TestMode] GameSessionHandler not found in Tutorial scene");
+
+            // Override TGH.playerSpawn directly
+            var spawnField = typeof(TutorialGameHandler).GetField("playerSpawn",
+                BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+            if (spawnField != null)
+            {
+                spawnField.SetValue(__instance, new Vec2((Fix)TestModeManager.SpawnX, (Fix)TestModeManager.SpawnY));
+                Plugin.Log.LogInfo($"[TestMode] TGH.playerSpawn → ({TestModeManager.SpawnX:F1},{TestModeManager.SpawnY:F1})");
+            }
 
             Util.EnvironmentApplier.Apply(map.Environment);
 
