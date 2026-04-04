@@ -80,6 +80,9 @@ namespace BoplMapEditor.Util
 
             var go = Object.Instantiate(template.gameObject);
             go.name = $"CustomPlatform_{data.X}_{data.Y}";
+            // Template lives in DontDestroyOnLoad — move clone into active scene so physics sees it
+            UnityEngine.SceneManagement.SceneManager.MoveGameObjectToScene(
+                go, UnityEngine.SceneManagement.SceneManager.GetActiveScene());
             go.SetActive(true);
 
             var srr = go.GetComponent<StickyRoundedRectangle>();

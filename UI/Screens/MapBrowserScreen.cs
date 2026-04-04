@@ -457,7 +457,9 @@ namespace BoplMapEditor.UI
             foreach (var def in DefaultMaps.GetDefaults())
                 allMaps.Add((def, true, null));
 
-            foreach (var fname in MapSerializer.ListMaps())
+            var userFiles = MapSerializer.ListMaps();
+            Plugin.Log.LogInfo($"[Browser] Refresh: {userFiles.Length} user map files in {MapSerializer.MapsDirectory}");
+            foreach (var fname in userFiles)
             {
                 var map = MapSerializer.LoadMap(fname);
                 if (map != null) allMaps.Add((map, false, fname));

@@ -31,8 +31,19 @@ namespace BoplMapEditor.Data
         {
             string path = Path.Combine(MapsDirectory, name + ".json");
             if (!File.Exists(path)) return null;
-            string json = File.ReadAllText(path, Encoding.UTF8);
-            return JsonUtility.FromJson<MapData>(json);
+            try
+            {
+                string json = File.ReadAllText(path, Encoding.UTF8);
+                var map = JsonUtility.FromJson<MapData>(json);
+                if (map == null)
+                    Plugin.Log.LogWarning($"[MapSerializer] FromJson returned null for '{name}'");
+                return map;
+            }
+            catch (Exception ex)
+            {
+                Plugin.Log.LogError($"[MapSerializer] Failed to load '{name}': {ex.Message}");
+                return null;
+            }
         }
 
         public static string[] ListMaps()
