@@ -25,9 +25,10 @@ namespace BoplMapEditor.Util
             var template = GetTemplate();
             if (template == null)
             {
-                Plugin.Log.LogError("[PlatformSpawner] No template StickyRoundedRectangle found in scene.");
+                Plugin.Log.LogError("[PlatformSpawner] No template StickyRoundedRectangle found — cannot spawn platform.");
                 return null;
             }
+            Plugin.Log.LogInfo($"[PlatformSpawner] Spawning platform at ({data.X:F1},{data.Y:F1}) size=({data.HalfW:F1},{data.HalfH:F1}) template='{template.name}'");
 
             var go = Object.Instantiate(template.gameObject);
             go.name = $"CustomPlatform_{data.X}_{data.Y}";
@@ -77,9 +78,16 @@ namespace BoplMapEditor.Util
         public static void DestroyAllGamePlatforms()
         {
             var platforms = Object.FindObjectsOfType<StickyRoundedRectangle>(true);
+            Plugin.Log.LogInfo($"[PlatformSpawner] DestroyAll: found {platforms.Length} platforms, template={(_template != null ? _template.name : "null")}");
+
+            // Preserve one platform as a clone template BEFORE destroying —
+            // Destroy() is deferred but FindObjectsOfType may not find pending-destroy objects.
+            if (_template == null || !_template)
+                _template = platforms.FirstOrDefault();
+
             foreach (var p in platforms)
                 Object.Destroy(p.gameObject);
-            _template = null;
+            // Do NOT clear _template — Instantiate works on pending-destroy objects this frame.
         }
 
         // Apply water height and background based on level theme
