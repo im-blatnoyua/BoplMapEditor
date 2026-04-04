@@ -193,17 +193,26 @@ namespace BoplMapEditor.Core
                 Util.PlatformSpawner.SpawnPlatform(p);
             Util.EnvironmentApplier.Apply(map.Environment);
 
-            // Disable TutorialGameHandler so it can't reset platforms or run its challenge logic
+            // Stop TutorialGameHandler coroutines (kills the 9-sec clear timer)
+            // but keep the component enabled so player respawn still works.
             var tgh = Object.FindObjectOfType<TutorialGameHandler>();
             if (tgh != null)
             {
-                tgh.enabled = false;
-                Plugin.Log.LogInfo("[TestMode] TutorialGameHandler disabled");
+                tgh.StopAllCoroutines();
+                Plugin.Log.LogInfo("[TestMode] TutorialGameHandler coroutines stopped");
             }
             else
-            {
-                Plugin.Log.LogWarning("[TestMode] TutorialGameHandler not found in scene");
-            }
+                Plugin.Log.LogWarning("[TestMode] TutorialGameHandler not found");
+
+            // Destroy tutorial UI/trigger objects — they're independent GameObjects
+            int removed = 0;
+            foreach (var arrow in Object.FindObjectsOfType<TutorialArrow>(true))
+                { Object.Destroy(arrow.gameObject); removed++; }
+            foreach (var pickup in Object.FindObjectsOfType<TutorialArrowPickup>(true))
+                { Object.Destroy(pickup.gameObject); removed++; }
+            foreach (var dummy in Object.FindObjectsOfType<TutorialTargetDummy>(true))
+                { Object.Destroy(dummy.gameObject); removed++; }
+            Plugin.Log.LogInfo($"[TestMode] Removed {removed} tutorial UI objects");
         }
     }
 
