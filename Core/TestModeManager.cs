@@ -76,9 +76,8 @@ namespace BoplMapEditor.Core
         }
     }
 
-    // Fires when TutorialGameHandler.PrepareTutorial runs — this is where Tutorial sets
-    // up its own platforms. We let it finish, then immediately replace with our map.
-    [HarmonyPatch(typeof(TutorialGameHandler), "PrepareTutorial")]
+    // Fires after TutorialGameHandler.Init — tutorial is fully set up, replace with our map.
+    [HarmonyPatch(typeof(TutorialGameHandler), "Init")]
     public static class TutorialGameHandler_TestPatch
     {
         static void Postfix(TutorialGameHandler __instance)
