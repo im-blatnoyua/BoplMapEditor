@@ -11,6 +11,18 @@ namespace BoplMapEditor.Util
     {
         private static StickyRoundedRectangle? _template;
 
+        // Call immediately when a scene loads to cache template before anything destroys platforms.
+        public static void EnsureTemplate()
+        {
+            if (_template != null && _template) return;
+            var all = Object.FindObjectsOfType<StickyRoundedRectangle>(true);
+            _template = all.FirstOrDefault();
+            if (_template != null)
+                Plugin.Log.LogInfo($"[PlatformSpawner] Template cached early: '{_template.name}'");
+            else
+                Plugin.Log.LogWarning("[PlatformSpawner] EnsureTemplate: no StickyRoundedRectangle in scene");
+        }
+
         // Find a disabled platform as a cloning template
         private static StickyRoundedRectangle? GetTemplate()
         {

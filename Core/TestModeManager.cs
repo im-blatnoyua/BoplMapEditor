@@ -78,6 +78,8 @@ namespace BoplMapEditor.Core
         {
             SceneManager.sceneLoaded -= OnTutorialSceneLoaded;
             if (TestMap == null) return;
+            // Cache platform template NOW — before TutorialGameHandler coroutines run
+            Util.PlatformSpawner.EnsureTemplate();
             Plugin.Log.LogInfo($"[TestMode] Tutorial loaded — bootstrapping map '{TestMap.Name}'");
             var go = new GameObject("TestModeBootstrap");
             go.AddComponent<TestModeBootstrap>();
@@ -231,7 +233,7 @@ namespace BoplMapEditor.Core
             else
                 Plugin.Log.LogWarning("[TestMode] TutorialGameHandler not found");
 
-            // Destroy tutorial UI/trigger objects — they're independent GameObjects
+            // Destroy all tutorial UI/trigger objects
             int removed = 0;
             foreach (var arrow in Object.FindObjectsOfType<TutorialArrow>(true))
                 { Object.Destroy(arrow.gameObject); removed++; }
@@ -239,6 +241,12 @@ namespace BoplMapEditor.Core
                 { Object.Destroy(pickup.gameObject); removed++; }
             foreach (var dummy in Object.FindObjectsOfType<TutorialTargetDummy>(true))
                 { Object.Destroy(dummy.gameObject); removed++; }
+            // Catch any remaining Tutorial-named objects (floating text, letters, etc.)
+            foreach (var root in UnityEngine.SceneManagement.SceneManager.GetActiveScene().GetRootGameObjects())
+            {
+                if (root.name.StartsWith("Tutorial", System.StringComparison.OrdinalIgnoreCase))
+                    { Object.Destroy(root); removed++; }
+            }
             Plugin.Log.LogInfo($"[TestMode] Removed {removed} tutorial UI objects");
         }
     }
