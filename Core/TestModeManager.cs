@@ -87,16 +87,34 @@ namespace BoplMapEditor.Core
             var map = TestModeManager.TestMap;
             if (map == null) return;
 
-            Plugin.Log.LogInfo($"[TestMode] PrepareTutorial → replacing with '{map.Name}' ({map.Platforms.Count} platforms)");
+            // Stop coroutines first — prevents Tutorial from spawning its own platforms after Init
+            __instance.StopAllCoroutines();
+
+            var before = Object.FindObjectsOfType<StickyRoundedRectangle>(true);
+            Plugin.Log.LogInfo($"[TestMode] Init postfix: {before.Length} tutorial platforms found, destroying...");
 
             Util.PlatformSpawner.DestroyAllGamePlatforms();
-            foreach (var p in map.Platforms)
-                Util.PlatformSpawner.SpawnPlatform(p);
-            Util.EnvironmentApplier.Apply(map.Environment);
 
-            // Stop coroutines AFTER PrepareTutorial ran — kills the timer it just started
-            __instance.StopAllCoroutines();
-            Plugin.Log.LogInfo("[TestMode] TutorialGameHandler coroutines stopped");
+            var spawned = new System.Collections.Generic.List<StickyRoundedRectangle>();
+            foreach (var p in map.Platforms)
+            {
+                var srr = Util.PlatformSpawner.SpawnPlatform(p);
+                if (srr != null) spawned.Add(srr);
+            }
+            Plugin.Log.LogInfo($"[TestMode] Spawned {spawned.Count}/{map.Platforms.Count} platforms");
+
+            // Update TutorialGameHandler.grounds[] so Tutorial's physics sees our platforms
+            var groundsField = typeof(TutorialGameHandler).GetField("grounds",
+                BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+            if (groundsField != null)
+            {
+                groundsField.SetValue(__instance, spawned.ToArray());
+                Plugin.Log.LogInfo("[TestMode] TGH.grounds[] updated");
+            }
+            else
+                Plugin.Log.LogWarning("[TestMode] TGH.grounds field not found — platforms may be phantom");
+
+            Util.EnvironmentApplier.Apply(map.Environment);
 
             // Remove tutorial UI/trigger objects
             int removed = 0;
