@@ -7,8 +7,6 @@ using UnityEngine.SceneManagement;
 
 namespace BoplMapEditor.Core
 {
-    // Starts a real solo game session using map spawn points.
-    // Patches GameSessionHandler to spawn player at our position.
     public static class TestModeManager
     {
         public static bool     IsTestMode  { get; private set; }
@@ -17,8 +15,7 @@ namespace BoplMapEditor.Core
         public static string   ReturnScene { get; private set; } = "CharacterSelect";
         public static MapData? TestMap     { get; private set; }
 
-        // Cached in lobby before Level1 loads (ScriptableObjects unload with their scene)
-        static PlayerColors?   _cachedPlayerColors;
+        static PlayerColors?    _cachedPlayerColors;
         static NamedSpriteList? _cachedAbilityIcons;
 
         public static void CacheFromLobby(CharacterSelectHandler handler)
@@ -26,15 +23,13 @@ namespace BoplMapEditor.Core
             try
             {
                 var pcField = typeof(CharacterSelectHandler).GetField("playerColors",
-                    System.Reflection.BindingFlags.Instance |
-                    System.Reflection.BindingFlags.NonPublic |
-                    System.Reflection.BindingFlags.Public);
+                    BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Public);
                 _cachedPlayerColors = pcField?.GetValue(handler) as PlayerColors;
 
                 if (SteamManager.instance != null)
                     _cachedAbilityIcons = SteamManager.instance.abilityIcons;
 
-                Plugin.Log.LogInfo($"[TestMode] Cached lobby data: " +
+                Plugin.Log.LogInfo($"[TestMode] CacheFromLobby: " +
                     $"colors={(_cachedPlayerColors != null ? "OK" : "null")} " +
                     $"icons={(_cachedAbilityIcons != null ? "OK" : "null")}");
             }
@@ -52,104 +47,25 @@ namespace BoplMapEditor.Core
                 return;
             }
 
-            // Pick spawn 1, fallback to first
             var sp = map.SpawnPoints.Find(s => s.PlayerId == 1) ?? map.SpawnPoints[0];
             SpawnX      = sp.X;
             SpawnY      = sp.Y;
             ReturnScene = returnScene;
             TestMap     = map;
             IsTestMode  = true;
-            // Allow GameSessionHandler to run — clear editor scene flag
             EditorSceneManager.IsEditorScene = false;
 
-            Plugin.Log.LogInfo($"[TestMode] Starting solo test at ({SpawnX:F1},{SpawnY:F1})");
+            Plugin.Log.LogInfo($"[TestMode] Starting test at ({SpawnX:F1},{SpawnY:F1})");
 
-            // Preserve a platform template NOW — level scene still loaded, Tutorial has none
+            // Level scene is still loaded here — grab a platform template before Tutorial replaces the scene
             Util.PlatformSpawner.PreserveTemplate();
 
-            // Persistent session handler — survives scene load, handles Escape to exit
+            // Persistent Escape handler
             var sessionGo = new GameObject("TestModeSession");
             Object.DontDestroyOnLoad(sessionGo);
             sessionGo.AddComponent<TestModeSession>();
 
-            // Tutorial auto-spawns a single player without lobby setup
-            SceneManager.sceneLoaded += OnTutorialSceneLoaded;
             SceneManager.LoadScene("Tutorial");
-        }
-
-        static void OnTutorialSceneLoaded(Scene scene, LoadSceneMode mode)
-        {
-            SceneManager.sceneLoaded -= OnTutorialSceneLoaded;
-            if (TestMap == null) return;
-            // Cache platform template NOW — before TutorialGameHandler coroutines run
-            Util.PlatformSpawner.EnsureTemplate();
-            Plugin.Log.LogInfo($"[TestMode] Tutorial loaded — bootstrapping map '{TestMap.Name}'");
-            var go = new GameObject("TestModeBootstrap");
-            go.AddComponent<TestModeBootstrap>();
-        }
-
-        static bool SetupSoloPlayer()
-        {
-            try
-            {
-                // Use cached data from lobby (ScriptableObjects may be unloaded by now)
-                var pc = _cachedPlayerColors;
-                if (pc == null)
-                {
-                    // Fallback: try FindObjectsOfTypeAll
-                    var all = Resources.FindObjectsOfTypeAll<PlayerColors>();
-                    pc = all.Length > 0 ? all[0] : null;
-                }
-                if (pc == null)
-                {
-                    Plugin.Log.LogWarning("[TestMode] PlayerColors not found. Cache lobby data first.");
-                    return false;
-                }
-
-                var material = pc[0].playerMaterial;
-                if (material == null)
-                {
-                    Plugin.Log.LogWarning("[TestMode] No player material found.");
-                    return false;
-                }
-
-                var abilityIcons = _cachedAbilityIcons ?? SteamManager.instance?.abilityIcons;
-                if (abilityIcons == null)
-                {
-                    Plugin.Log.LogWarning("[TestMode] abilityIcons not found.");
-                    return false;
-                }
-
-                // Access the backing field directly — PlayerList() may return a copy
-                var ph = PlayerHandler.Get();
-                var listField = typeof(PlayerHandler).GetField("playerList",
-                    BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Public);
-                var list = listField?.GetValue(ph) as System.Collections.Generic.List<Player>
-                           ?? ph.PlayerList();
-                list.Clear();
-                var player = new Player(1, 0);
-                player.Color              = material;
-                player.UsesKeyboardAndMouse = true;
-                player.CanUseAbilities    = true;
-                player.Abilities          = new System.Collections.Generic.List<GameObject>();
-                player.AbilityIcons       = new System.Collections.Generic.List<Sprite>();
-
-                // Add first ability (e.g. index 0)
-                if (abilityIcons.sprites != null && abilityIcons.sprites.Count > 0)
-                {
-                    player.Abilities.Add(abilityIcons.sprites[0].associatedGameObject);
-                    player.AbilityIcons.Add(abilityIcons.sprites[0].sprite);
-                }
-
-                list.Add(player);
-                Plugin.Log.LogInfo($"[TestMode] Solo player set up OK. PlayerList count={list.Count}");
-                return true;
-            }
-            catch (System.Exception ex)
-            {
-                Plugin.Log.LogError($"[TestMode] SetupSoloPlayer failed: {ex}");
-                return false;
-            }
         }
 
         public static void End()
@@ -160,14 +76,54 @@ namespace BoplMapEditor.Core
         }
     }
 
-    // Override teamSpawns[0] with our spawn point when test mode is active
+    // Fires when TutorialGameHandler.PrepareTutorial runs — this is where Tutorial sets
+    // up its own platforms. We let it finish, then immediately replace with our map.
+    [HarmonyPatch(typeof(TutorialGameHandler), "PrepareTutorial")]
+    public static class TutorialGameHandler_TestPatch
+    {
+        static void Postfix(TutorialGameHandler __instance)
+        {
+            if (!TestModeManager.IsTestMode) return;
+
+            var map = TestModeManager.TestMap;
+            if (map == null) return;
+
+            Plugin.Log.LogInfo($"[TestMode] PrepareTutorial → replacing with '{map.Name}' ({map.Platforms.Count} platforms)");
+
+            Util.PlatformSpawner.DestroyAllGamePlatforms();
+            foreach (var p in map.Platforms)
+                Util.PlatformSpawner.SpawnPlatform(p);
+            Util.EnvironmentApplier.Apply(map.Environment);
+
+            // Stop coroutines AFTER PrepareTutorial ran — kills the timer it just started
+            __instance.StopAllCoroutines();
+            Plugin.Log.LogInfo("[TestMode] TutorialGameHandler coroutines stopped");
+
+            // Remove tutorial UI/trigger objects
+            int removed = 0;
+            foreach (var arrow in Object.FindObjectsOfType<TutorialArrow>(true))
+                { Object.Destroy(arrow.gameObject); removed++; }
+            foreach (var pickup in Object.FindObjectsOfType<TutorialArrowPickup>(true))
+                { Object.Destroy(pickup.gameObject); removed++; }
+            foreach (var dummy in Object.FindObjectsOfType<TutorialTargetDummy>(true))
+                { Object.Destroy(dummy.gameObject); removed++; }
+            foreach (var root in SceneManager.GetActiveScene().GetRootGameObjects())
+            {
+                if (root.name.StartsWith("Tutorial", System.StringComparison.OrdinalIgnoreCase)
+                    && root.GetComponent<TutorialGameHandler>() == null)
+                    { Object.Destroy(root); removed++; }
+            }
+            Plugin.Log.LogInfo($"[TestMode] Removed {removed} tutorial UI objects");
+        }
+    }
+
+    // Override teamSpawns[0] with our spawn point
     [HarmonyPatch(typeof(GameSessionHandler), "Init")]
     public static class GameSessionHandler_TestSpawnPatch
     {
         static void Prefix(GameSessionHandler __instance)
         {
             if (!TestModeManager.IsTestMode) return;
-
             try
             {
                 var spawnsField = typeof(GameSessionHandler).GetField("teamSpawns",
@@ -175,7 +131,7 @@ namespace BoplMapEditor.Core
                 if (spawnsField?.GetValue(__instance) is Vec2[] spawns && spawns.Length > 0)
                 {
                     spawns[0] = new Vec2((Fix)TestModeManager.SpawnX, (Fix)TestModeManager.SpawnY);
-                    Plugin.Log.LogInfo($"[TestMode] Overrode teamSpawns[0] → ({TestModeManager.SpawnX:F1},{TestModeManager.SpawnY:F1})");
+                    Plugin.Log.LogInfo($"[TestMode] teamSpawns[0] → ({TestModeManager.SpawnX:F1},{TestModeManager.SpawnY:F1})");
                 }
             }
             catch (System.Exception ex)
@@ -185,75 +141,21 @@ namespace BoplMapEditor.Core
         }
     }
 
-    // Persists across scene loads; exits test mode when Escape is pressed.
+    // Escape key exit — persists across scene loads
     public class TestModeSession : MonoBehaviour
     {
         void Update()
         {
-            if (!TestModeManager.IsTestMode)
-            {
-                Destroy(gameObject);
-                return;
-            }
+            if (!TestModeManager.IsTestMode) { Destroy(gameObject); return; }
 
             if (Input.GetKeyDown(KeyCode.Escape))
             {
-                Plugin.Log.LogInfo("[TestMode] Escape pressed — returning to editor");
+                Plugin.Log.LogInfo("[TestMode] Escape — returning to editor");
                 Destroy(gameObject);
                 TestModeManager.End();
                 EditorSceneManager.ReopenBrowser = true;
                 SceneManager.LoadScene(TestModeManager.ReturnScene);
             }
-        }
-    }
-
-    // Waits for TutorialGameHandler to finish its own Awake/Start, then replaces platforms.
-    public class TestModeBootstrap : MonoBehaviour
-    {
-        int _frames;
-
-        void Update()
-        {
-            if (++_frames < 3) return;
-            Destroy(gameObject);
-
-            var map = TestModeManager.TestMap;
-            if (map == null) return;
-
-            Plugin.Log.LogInfo($"[TestMode] Replacing tutorial platforms ({map.Platforms.Count} platforms)");
-            Util.PlatformSpawner.DestroyAllGamePlatforms();
-            foreach (var p in map.Platforms)
-                Util.PlatformSpawner.SpawnPlatform(p);
-            Util.EnvironmentApplier.Apply(map.Environment);
-
-            // Stop TutorialGameHandler coroutines (kills the 9-sec clear timer)
-            // but keep the component enabled so player respawn still works.
-            var tgh = Object.FindObjectOfType<TutorialGameHandler>();
-            if (tgh != null)
-            {
-                tgh.StopAllCoroutines();
-                Plugin.Log.LogInfo("[TestMode] TutorialGameHandler coroutines stopped");
-            }
-            else
-                Plugin.Log.LogWarning("[TestMode] TutorialGameHandler not found");
-
-            // Destroy all tutorial UI/trigger objects
-            int removed = 0;
-            foreach (var arrow in Object.FindObjectsOfType<TutorialArrow>(true))
-                { Object.Destroy(arrow.gameObject); removed++; }
-            foreach (var pickup in Object.FindObjectsOfType<TutorialArrowPickup>(true))
-                { Object.Destroy(pickup.gameObject); removed++; }
-            foreach (var dummy in Object.FindObjectsOfType<TutorialTargetDummy>(true))
-                { Object.Destroy(dummy.gameObject); removed++; }
-            // Catch any remaining Tutorial-named root objects (floating text, letters, etc.)
-            // Skip objects that carry TutorialGameHandler — needed for player respawn
-            foreach (var root in UnityEngine.SceneManagement.SceneManager.GetActiveScene().GetRootGameObjects())
-            {
-                if (root.name.StartsWith("Tutorial", System.StringComparison.OrdinalIgnoreCase)
-                    && root.GetComponent<TutorialGameHandler>() == null)
-                    { Object.Destroy(root); removed++; }
-            }
-            Plugin.Log.LogInfo($"[TestMode] Removed {removed} tutorial UI objects");
         }
     }
 
